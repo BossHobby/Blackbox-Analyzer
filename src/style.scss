@@ -1,1 +1,52 @@
+$green: hsl(96deg 53% 43%);
+$green-light: hsl(96deg 53% 48%);
+$green-dark: hsl(96deg 53% 40%);
+
+$gray: hsl(0, 0%, 19%);
+$gray-ligth: hsl(0, 0%, 29%);
+$gray-ligther: hsl(0, 0%, 73%);
+$gray-darker: hsl(0, 0%, 16%);
+$gray-darkest: hsl(0, 0%, 3%);
+
+$white: rgb(255, 255, 255);
+$white-off: rgb(233, 235, 252);
+
+$primary: $green;
+
+$text: $white-off;
+$text-strong: $white;
+
+$link: $white-off;
+$link-hover: $gray-ligther;
+$link-invert: $gray-ligther;
+$link-focus: $gray-ligther;
+
+$scheme-main: $gray-darker;
+$scheme-main-bis: $gray;
+$scheme-main-ter: $gray;
+$scheme-invert: $white-off;
+
+$background: $gray;
+$body-background-color: $gray;
+
+$shadow: 0 0.5em 1em -0.125em rgba($gray-darkest, 0.5),
+  0 0px 0 1px rgba($gray-darkest, 0.2);
+$card-header-shadow: 0 0.125em 0.25em rgba($gray-darkest, 0.5);
+
+$border: $gray-ligth;
+$border-hover: $gray-ligther;
+$border-light: $gray-ligth;
+
+$navbar-bottom-box-shadow-size: 0 -0.1em 0.125em;
+$navbar-box-shadow-color: rgb(8 8 8 / 30%);
+
 @import "node_modules/bulma/bulma.sass";
+@import "node_modules/bulma/bulma.sass";
+
+body {
+  font-family: "Roboto", sans-serif;
+  font-feature-settings: "kern", "liga";
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
