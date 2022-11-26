@@ -1,5 +1,5 @@
 <template>
-  <div class="timeline-graph my-3">
+  <div class="timeline-graph">
     <CanvasComponent
       ref="canvas"
       @draw="draw"
@@ -39,12 +39,70 @@ export default defineComponent({
   data() {
     return {
       fields: [BlackboxFields.GYRO_RAW, BlackboxFields.GYRO_FILTER],
+      graphPath: new Path2D(),
       drag: false,
     };
   },
   computed: {
     canvas() {
       return this.$refs.canvas as HTMLCanvasElement;
+    },
+    halfHeight() {
+      return this.canvas.height / 2;
+    },
+    entriesPerMS() {
+      return this.bb.entriesPerMS;
+    },
+    windowSize() {
+      return Math.floor(this.tl.zoom * this.entriesPerMS);
+    },
+    windowOffset() {
+      return Math.ceil(
+        this.tl.cursor * this.entriesPerMS - this.windowSize / 2
+      );
+    },
+    tickWidth() {
+      return (this.canvas.width / this.tl.zoom) * this.entriesPerMS;
+    },
+    graphValues() {
+      return this.bb.entries.map((entry) => {
+        return this.fields.map((field) => {
+          return transformGyro(entry[field][this.index || 0]) / 2000;
+        });
+      });
+    },
+    graphPaths() {
+      return this.fields.map((_, fieldIndex) => {
+        const path = new Path2D();
+
+        path.moveTo(0, this.halfHeight);
+        for (let i = 0; i < this.windowSize; i++) {
+          const val = this.graphValues[this.windowOffset + i][fieldIndex];
+          path.lineTo(
+            i * this.tickWidth,
+            val * this.halfHeight + this.halfHeight
+          );
+        }
+        return path;
+      });
+    },
+    hoverValues() {
+      const hoverIndex = this.windowOffset + this.tl.hover * this.windowSize;
+      const hoverIndexLower = Math.floor(hoverIndex);
+      const hoverWeigthLower = hoverIndex - hoverIndexLower;
+      const hoverIndexUpper = Math.ceil(hoverIndex);
+      const hoverWeigthUpper = 1 - hoverWeigthLower;
+
+      return this.fields.map((field) => {
+        const valUpper = transformGyro(
+          this.bb.entries[hoverIndexUpper][field][this.index || 0]
+        );
+        const valLower = transformGyro(
+          this.bb.entries[hoverIndexLower][field][this.index || 0]
+        );
+
+        return valUpper * hoverWeigthUpper + valLower * hoverWeigthLower;
+      });
     },
   },
   methods: {
@@ -73,12 +131,6 @@ export default defineComponent({
         return;
       }
 
-      const halfHeight = this.canvas.height / 2;
-      const entriesPerMS = this.bb.entriesPerMS;
-      const windowSize = Math.floor(this.tl.zoom * entriesPerMS);
-      const offset = Math.floor(this.tl.cursor * entriesPerMS - windowSize / 2);
-      const tickWidth = (this.canvas.width / this.tl.zoom) * entriesPerMS;
-
       ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
       ctx.strokeStyle = Color.GRAY_LIGTH;
@@ -91,16 +143,9 @@ export default defineComponent({
       ctx.stroke();
 
       let colorIndex = 0;
-      for (const field of this.fields) {
+      for (const path of this.graphPaths) {
         ctx.strokeStyle = this.tl.colors[colorIndex++];
-        ctx.beginPath();
-        ctx.moveTo(0, halfHeight);
-        for (let i = 0; i < windowSize; i++) {
-          const entry = this.bb.entries[offset + i];
-          const val = transformGyro(entry[field][this.index || 0]) / 2000;
-          ctx.lineTo(i * tickWidth, val * halfHeight + halfHeight);
-        }
-        ctx.stroke();
+        ctx.stroke(path);
       }
 
       const hoverPos = this.tl.windowHoverPos(this.canvas.width);
@@ -110,25 +155,10 @@ export default defineComponent({
       ctx.lineTo(hoverPos, this.canvas.height);
       ctx.stroke();
 
-      const hoverIndex = offset + this.tl.hover * windowSize;
-      const hoverIndexLower = Math.floor(hoverIndex);
-      const hoverWeigthLower = hoverIndex - hoverIndexLower;
-      const hoverIndexUpper = Math.ceil(hoverIndex);
-      const hoverWeigthUpper = 1 - hoverWeigthLower;
-
+      colorIndex = 0;
       ctx.font = "14px Roboto Mono";
       ctx.textAlign = "right";
-
-      colorIndex = 0;
-      for (const field of this.fields) {
-        const valUpper = transformGyro(
-          this.bb.entries[hoverIndexUpper][field][this.index || 0]
-        );
-        const valLower = transformGyro(
-          this.bb.entries[hoverIndexLower][field][this.index || 0]
-        );
-
-        const val = valUpper * hoverWeigthUpper + valLower * hoverWeigthLower;
+      for (const val of this.hoverValues) {
         ctx.fillStyle = this.tl.colors[colorIndex];
         ctx.fillText(
           val.toFixed(2).toString() + " deg/s",

@@ -1,12 +1,14 @@
 <template>
-  <CanvasComponent
-    ref="canvas"
-    @draw="draw"
-    @mousedown="mousedown"
-    @mousemove="mousemove"
-    @mouseup="mouseup"
-    @wheel="wheel"
-  />
+  <div class="timeline">
+    <CanvasComponent
+      ref="canvas"
+      @draw="draw"
+      @mousedown="mousedown"
+      @mousemove="mousemove"
+      @mouseup="mouseup"
+      @wheel="wheel"
+    />
+  </div>
 </template>
 
 <script lang="ts">
@@ -91,18 +93,14 @@ export default defineComponent({
         const offset = i * tickWidth;
         ctx.strokeStyle = Color.GRAY_LIGTH;
         ctx.beginPath();
-        ctx.moveTo(offset, halfHeight - halfHeight * 0.3);
-        ctx.lineTo(offset, halfHeight + halfHeight * 0.3);
+        ctx.moveTo(offset, halfHeight - halfHeight * 0.4);
+        ctx.lineTo(offset, halfHeight + halfHeight * 0.4);
         ctx.stroke();
 
         ctx.font = "14px Roboto Mono";
         ctx.textAlign = "center";
         ctx.fillStyle = Color.WHITE_OFF;
-        ctx.fillText(
-          this.formatDuration(i),
-          offset,
-          halfHeight + halfHeight * 0.6
-        );
+        ctx.fillText(this.formatDuration(i), offset, this.canvas.height - 10);
       }
 
       const cursorPos = this.tl.cursorPos(this.canvas.width);
@@ -111,11 +109,11 @@ export default defineComponent({
       ctx.fillStyle = "hsla(0, 0%, 29%, 0.4)";
       ctx.strokeStyle = Color.GRAY_LIGTHER;
       ctx.beginPath();
-      ctx.moveTo(cursorPos - cursorWidth / 2, halfHeight + halfHeight * 0.3);
-      ctx.lineTo(cursorPos + cursorWidth / 2, halfHeight + halfHeight * 0.3);
-      ctx.lineTo(cursorPos + cursorWidth / 2, halfHeight - halfHeight * 0.3);
-      ctx.lineTo(cursorPos - cursorWidth / 2, halfHeight - halfHeight * 0.3);
-      ctx.lineTo(cursorPos - cursorWidth / 2, halfHeight + halfHeight * 0.3);
+      ctx.moveTo(cursorPos - cursorWidth / 2, halfHeight + halfHeight * 0.4);
+      ctx.lineTo(cursorPos + cursorWidth / 2, halfHeight + halfHeight * 0.4);
+      ctx.lineTo(cursorPos + cursorWidth / 2, halfHeight - halfHeight * 0.4);
+      ctx.lineTo(cursorPos - cursorWidth / 2, halfHeight - halfHeight * 0.4);
+      ctx.lineTo(cursorPos - cursorWidth / 2, halfHeight + halfHeight * 0.4);
       ctx.stroke();
       ctx.fill();
 
@@ -132,11 +130,16 @@ export default defineComponent({
       ctx.fillText(
         this.formatDuration(cursorPos / tickWidth),
         cursorPos,
-        halfHeight - halfHeight * 0.4
+        halfHeight - halfHeight * 0.6
       );
     },
   },
 });
 </script>
 
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+.timeline {
+  height: 110px;
+  width: 100%;
+}
+</style>

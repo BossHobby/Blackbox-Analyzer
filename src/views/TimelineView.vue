@@ -1,9 +1,14 @@
 <template>
   <h1 v-if="!tl.ready">No file loaded</h1>
-  <TimeGraphComponent :index="0" />
-  <TimeGraphComponent :index="1" />
-  <TimeGraphComponent :index="2" />
-  <TimelineComponent />
+  <div style="margin-top: 60px; margin-bottom: 120px">
+    <TimeGraphComponent :index="0" />
+    <TimeGraphComponent :index="1" />
+    <TimeGraphComponent :index="2" />
+  </div>
+
+  <div class="navbar is-fixed-bottom has-shadow">
+    <TimelineComponent />
+  </div>
 </template>
 
 <script lang="ts">
@@ -23,11 +28,6 @@ export default defineComponent({
       tl: useTimelineStore(),
     };
   },
-  data() {
-    return {};
-  },
-  computed: {},
-  methods: {},
 });
 </script>
 
