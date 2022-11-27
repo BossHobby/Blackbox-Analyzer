@@ -139,20 +139,26 @@ export default defineComponent({
     },
     mousemove(e: MouseEvent) {
       if (this.drag) {
-        this.tl.moveCursor(this.canvas.width, e.movementX);
+        this.tl.moveCursor(
+          e.movementX / this.tl.windowPixelsPerMS(this.canvas.width)
+        );
       }
       this.tl.setWindowHover(this.canvas.width, e.offsetX);
     },
     mouseup(e: MouseEvent) {
-      this.tl.moveCursor(this.canvas.width, e.movementX);
+      this.tl.moveCursor(
+        e.movementX / this.tl.windowPixelsPerMS(this.canvas.width)
+      );
       this.drag = false;
     },
     wheel(e: WheelEvent) {
       e.preventDefault();
       e.stopPropagation();
 
-      this.tl.modifyZoom(e.deltaY);
-      this.tl.moveCursor(this.canvas.width, (e.deltaX * this.tl.zoom) / 10000);
+      this.tl.modifyZoom(e.deltaY / 500);
+      this.tl.moveCursor(
+        e.deltaX / this.tl.windowPixelsPerMS(this.canvas.width)
+      );
     },
     draw(ctx: CanvasRenderingContext2D) {
       if (!this.tl.ready) {

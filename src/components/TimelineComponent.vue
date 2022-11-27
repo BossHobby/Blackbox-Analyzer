@@ -56,8 +56,10 @@ export default defineComponent({
       e.preventDefault();
       e.stopPropagation();
 
-      this.tl.modifyZoom(e.deltaY);
-      this.tl.moveCursor(this.canvas.width, (e.deltaX * this.tl.zoom) / 10000);
+      this.tl.modifyZoom(e.deltaY / 500);
+      this.tl.moveCursor(
+        (e.deltaX * 0.05) / this.tl.pixelsPerMS(this.canvas.width)
+      );
     },
     formatDuration(s: number) {
       const time: any = {
