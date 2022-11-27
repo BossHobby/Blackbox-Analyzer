@@ -28,19 +28,25 @@
       </div>
     </div>
 
+    <div class="navbar-end"></div>
     <div class="navbar-end">
-      <spinner-btn
-        class="navbar-item button my-auto mr-2 is-primary"
-        @click="bb.loadBlackbox()"
-      >
-        Load File
-      </spinner-btn>
+      <div class="navbar-item">
+        <div class="buttons">
+          <spinner-btn class="button is-primary" @click="bb.loadBlackbox()">
+            Load File
+          </spinner-btn>
+        </div>
+      </div>
+      <a class="navbar-item" @click="render.toggleSidebar()">
+        <font-awesome-icon icon="fa-solid fa-bars" size="lg" fixed-width />
+      </a>
     </div>
   </nav>
 </template>
 
 <script lang="ts">
 import { useBlackboxStore } from "@/stores/blackbox";
+import { useRenderStore } from "@/stores/render";
 import { defineComponent } from "vue";
 
 export default defineComponent({
@@ -48,6 +54,7 @@ export default defineComponent({
   setup() {
     return {
       bb: useBlackboxStore(),
+      render: useRenderStore(),
     };
   },
 });

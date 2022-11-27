@@ -1,13 +1,25 @@
 {
   "extends": "@vue/tsconfig/tsconfig.web.json",
-  "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
+  "include": [
+    "env.d.ts",
+    "src/**/*",
+    "src/**/*.vue"
+  ],
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
-    }
+      "@/*": [
+        "./src/*"
+      ]
+    },
+    "lib": [
+      "ES2019.Array",
+      "ES2017.Object",
+      "ES2016",
+      "DOM",
+      "DOM.Iterable"
+    ]
   },
-
   "references": [
     {
       "path": "./tsconfig.config.json"

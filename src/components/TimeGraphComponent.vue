@@ -13,11 +13,7 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
-import {
-  BlackboxFields,
-  transformGyro,
-  useBlackboxStore,
-} from "@/stores/blackbox";
+import { useBlackboxStore } from "@/stores/blackbox";
 import CanvasComponent from "@/components/CanvasComponent.vue";
 import { useTimelineStore } from "@/stores/timeline";
 import { Color } from "@/stores/render";
@@ -28,7 +24,12 @@ export default defineComponent({
     CanvasComponent,
   },
   props: {
-    index: Number,
+    fields: {
+      type: Array<Object>,
+      default() {
+        return [];
+      },
+    },
   },
   setup() {
     return {
@@ -38,7 +39,6 @@ export default defineComponent({
   },
   data() {
     return {
-      fields: [BlackboxFields.GYRO_RAW, BlackboxFields.GYRO_FILTER],
       graphPath: new Path2D(),
       drag: false,
     };
@@ -57,30 +57,54 @@ export default defineComponent({
       return Math.floor(this.tl.zoom * this.entriesPerMS);
     },
     windowOffset() {
-      return Math.ceil(
+      return Math.floor(
         this.tl.cursor * this.entriesPerMS - this.windowSize / 2
       );
     },
     tickWidth() {
       return (this.canvas.width / this.tl.zoom) * this.entriesPerMS;
     },
-    graphValues() {
-      return this.bb.entries.map((entry) => {
-        return this.fields.map((field) => {
-          return transformGyro(entry[field][this.index || 0]) / 2000;
-        });
+    graphFields() {
+      return this.fields.map((field: any) => {
+        return {
+          ...this.bb.fields[field.name],
+          ...field,
+        };
       });
     },
+    graphValues() {
+      const fields = {
+        range: 0,
+        values: this.graphFields.map(() => new Array(this.bb.entries.length)),
+      };
+
+      for (const [entryIndex, entry] of this.bb.entries.entries()) {
+        for (const [fieldIndex, field] of this.graphFields.entries()) {
+          let val = entry[field.name];
+          if (field.index != undefined) {
+            val = val[field.index];
+          }
+          val = this.bb.transform(field.name, val);
+
+          fields.range = Math.max(fields.range, Math.abs(val) * 1.2);
+          fields.values[fieldIndex][entryIndex] = val;
+        }
+      }
+
+      return fields;
+    },
     graphPaths() {
-      return this.fields.map((_, fieldIndex) => {
+      return this.graphFields.map((_, fieldIndex) => {
         const path = new Path2D();
 
         path.moveTo(0, this.halfHeight);
         for (let i = 0; i < this.windowSize; i++) {
-          const val = this.graphValues[this.windowOffset + i][fieldIndex];
+          const val =
+            this.graphValues.values[fieldIndex][this.windowOffset + i] /
+            this.graphValues.range;
           path.lineTo(
             i * this.tickWidth,
-            val * this.halfHeight + this.halfHeight
+            val * -1 * this.halfHeight + this.halfHeight
           );
         }
         return path;
@@ -93,16 +117,20 @@ export default defineComponent({
       const hoverIndexUpper = Math.ceil(hoverIndex);
       const hoverWeigthUpper = 1 - hoverWeigthLower;
 
-      return this.fields.map((field) => {
-        const valUpper = transformGyro(
-          this.bb.entries[hoverIndexUpper][field][this.index || 0]
-        );
-        const valLower = transformGyro(
-          this.bb.entries[hoverIndexLower][field][this.index || 0]
-        );
-
-        return valUpper * hoverWeigthUpper + valLower * hoverWeigthLower;
-      });
+      let maxLen = 0;
+      return this.graphFields
+        .map((field, fieldIndex) => {
+          const valUpper = this.graphValues.values[fieldIndex][hoverIndexUpper];
+          const valLower = this.graphValues.values[fieldIndex][hoverIndexLower];
+          const val = valUpper * hoverWeigthUpper + valLower * hoverWeigthLower;
+          const str = val.toFixed(2).toString();
+          maxLen = Math.max(maxLen, str.length);
+          return { field, str };
+        })
+        .map(({ field, str }) => {
+          while (str.length < maxLen) str = " " + str;
+          return field.title + " " + str;
+        });
     },
   },
   methods: {
@@ -160,11 +188,7 @@ export default defineComponent({
       ctx.textAlign = "right";
       for (const val of this.hoverValues) {
         ctx.fillStyle = this.tl.colors[colorIndex];
-        ctx.fillText(
-          val.toFixed(2).toString() + " deg/s",
-          hoverPos - 6,
-          20 * (colorIndex + 1)
-        );
+        ctx.fillText(val, hoverPos - 6, 20 * (colorIndex + 1));
         colorIndex++;
       }
     },

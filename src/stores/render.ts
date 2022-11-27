@@ -17,6 +17,7 @@ export type DrawFuntion = (time: DOMHighResTimeStamp) => void;
 
 export const useRenderStore = defineStore("render", {
   state: () => ({
+    sidebar: false,
     drawFunctionId: 1,
     drawFunctions: {} as { [index: string]: DrawFuntion },
     animationeFrameId: 0,
@@ -26,8 +27,8 @@ export const useRenderStore = defineStore("render", {
     startRender() {
       this.stopRender();
       const doRender = (time: DOMHighResTimeStamp) => {
-        for (const key of Object.keys(this.drawFunctions)) {
-          this.drawFunctions[key](time);
+        for (const fn of Object.values(this.drawFunctions)) {
+          fn(time);
         }
         requestAnimationFrame(doRender);
       };
@@ -45,6 +46,9 @@ export const useRenderStore = defineStore("render", {
     },
     unsubscribeDraw(id: number) {
       delete this.drawFunctions[id.toString()];
+    },
+    toggleSidebar() {
+      this.sidebar = !this.sidebar;
     },
   },
 });

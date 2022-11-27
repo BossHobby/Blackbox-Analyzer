@@ -64,12 +64,11 @@ export default defineComponent({
         minute: Math.floor(s / 60) % 60,
         second: Math.floor(s) % 60,
       };
-      return Object.keys(time)
-        .map((k) => time[k])
+      return Object.values(time)
         .map((v) => {
-          v = v.toString();
-          while (v.length < 2) v = "0" + v;
-          return v;
+          let str = (v as number).toString();
+          while (str.length < 2) str = "0" + str;
+          return str;
         })
         .join(":");
     },
@@ -87,7 +86,8 @@ export default defineComponent({
       ctx.lineTo(this.canvas.width, halfHeight);
       ctx.stroke();
 
-      const tickWidth = 1000 * this.tl.pixelsPerMS(this.canvas.width);
+      const seconds = this.bb.duration >= 30 * 1000 ? 2 : 1;
+      const tickWidth = seconds * 1000 * this.tl.pixelsPerMS(this.canvas.width);
       const ticks = Math.floor(this.canvas.width / tickWidth);
       for (let i = 1; i < ticks; i++) {
         const offset = i * tickWidth;
@@ -100,7 +100,11 @@ export default defineComponent({
         ctx.font = "14px Roboto Mono";
         ctx.textAlign = "center";
         ctx.fillStyle = Color.WHITE_OFF;
-        ctx.fillText(this.formatDuration(i), offset, this.canvas.height - 10);
+        ctx.fillText(
+          this.formatDuration(i * seconds),
+          offset,
+          this.canvas.height - 10
+        );
       }
 
       const cursorPos = this.tl.cursorPos(this.canvas.width);
@@ -128,7 +132,7 @@ export default defineComponent({
       ctx.textAlign = "center";
       ctx.fillStyle = Color.GREEN;
       ctx.fillText(
-        this.formatDuration(cursorPos / tickWidth),
+        this.formatDuration((seconds * cursorWidth) / tickWidth),
         cursorPos,
         halfHeight - halfHeight * 0.6
       );
