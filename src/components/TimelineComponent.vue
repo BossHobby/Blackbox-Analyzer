@@ -41,12 +41,14 @@ export default defineComponent({
   },
   methods: {
     mousedown(e: MouseEvent) {
-      this.tl.setCursor(this.canvas.width, e.offsetX);
+      const pos = e.offsetX / this.tl.pixelsPerMS(this.canvas.width);
+      this.tl.setCursor(pos);
       this.drag = true;
     },
     mousemove(e: MouseEvent) {
       if (this.drag) {
-        this.tl.setCursor(this.canvas.width, e.offsetX);
+        const pos = e.offsetX / this.tl.pixelsPerMS(this.canvas.width);
+        this.tl.setCursor(pos);
       }
     },
     mouseup() {

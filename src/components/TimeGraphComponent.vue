@@ -6,6 +6,7 @@
       @mousedown="mousedown"
       @mousemove="mousemove"
       @mouseup="mouseup"
+      @contextmenu.capture.prevent
       @wheel="wheel"
     />
   </div>
@@ -41,6 +42,9 @@ export default defineComponent({
     return {
       graphPath: new Path2D(),
       drag: false,
+      select: false,
+      selectStart: 0,
+      selectEnd: 0,
     };
   },
   computed: {
@@ -134,8 +138,18 @@ export default defineComponent({
     },
   },
   methods: {
-    mousedown() {
-      this.drag = true;
+    mousedown(e: MouseEvent) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (e.button == 2) {
+        this.drag = true;
+      }
+      if (e.button == 0) {
+        this.select = true;
+        this.selectStart = e.offsetX;
+        this.selectEnd = e.offsetX;
+      }
     },
     mousemove(e: MouseEvent) {
       if (this.drag) {
@@ -143,13 +157,32 @@ export default defineComponent({
           e.movementX / this.tl.windowPixelsPerMS(this.canvas.width)
         );
       }
+      if (this.select) {
+        this.selectEnd = e.offsetX;
+      }
       this.tl.setWindowHover(this.canvas.width, e.offsetX);
     },
     mouseup(e: MouseEvent) {
-      this.tl.moveCursor(
-        e.movementX / this.tl.windowPixelsPerMS(this.canvas.width)
-      );
-      this.drag = false;
+      const pixelsPer = this.tl.windowPixelsPerMS(this.canvas.width);
+      this.tl.moveCursor(e.movementX / pixelsPer);
+      if (e.button == 2) {
+        this.drag = false;
+      }
+      if (e.button == 0) {
+        if (this.select) {
+          this.selectEnd = e.offsetX;
+
+          const start = Math.min(this.selectStart, this.selectEnd);
+          const end = Math.max(this.selectStart, this.selectEnd);
+
+          const delta = end - start;
+          const pos = (start + delta / 2) / pixelsPer;
+
+          this.tl.setZoom(delta / pixelsPer);
+          this.tl.setCursor(pos);
+        }
+        this.select = false;
+      }
     },
     wheel(e: WheelEvent) {
       e.preventDefault();
@@ -188,6 +221,19 @@ export default defineComponent({
       ctx.moveTo(hoverPos, 0);
       ctx.lineTo(hoverPos, this.canvas.height);
       ctx.stroke();
+
+      if (this.select) {
+        ctx.fillStyle = "hsla(0, 0%, 29%, 0.4)";
+        ctx.strokeStyle = Color.GRAY_LIGTHER;
+        ctx.beginPath();
+        ctx.moveTo(this.selectStart, this.canvas.height);
+        ctx.lineTo(this.selectEnd, this.canvas.height);
+        ctx.lineTo(this.selectEnd, 0);
+        ctx.lineTo(this.selectStart, 0);
+        ctx.lineTo(this.selectStart, this.canvas.height);
+        ctx.stroke();
+        ctx.fill();
+      }
 
       colorIndex = 0;
       ctx.font = "14px Roboto Mono";
