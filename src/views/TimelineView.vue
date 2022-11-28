@@ -2,20 +2,20 @@
   <h1 class="title" v-if="!tl.ready">No file loaded</h1>
   <div style="margin-top: 60px; margin-bottom: 120px">
     <TimeGraphComponent
-      v-for="(graph, index) in graphs"
+      v-for="(graph, index) in tl.graphs"
       :key="'graph-' + index"
       :fields="graph.fields"
     />
   </div>
 
   <div class="sidebar" :class="{ 'is-visible': render.sidebar }">
-    <button class="button is-primary mt-4" @click="addGraph()">
+    <button class="button is-primary mt-4" @click="tl.addGraph()">
       <font-awesome-icon icon="fa-solid fa-plus" size="lg" fixed-width />
       Graph
     </button>
 
     <div
-      v-for="(graph, graphIndex) in graphs"
+      v-for="(graph, graphIndex) in tl.graphs"
       :key="'graph-config-' + graphIndex"
       class="mt-4"
     >
@@ -23,7 +23,7 @@
         Graph {{ graphIndex + 1 }}
         <button
           class="delete mt-1"
-          @click="graphs.splice(graphIndex, 1)"
+          @click="tl.graphs.splice(graphIndex, 1)"
         ></button>
       </h4>
 
@@ -35,7 +35,7 @@
         <div class="field has-addons">
           <div class="control">
             <div class="select">
-              <select v-model="graphs[graphIndex].fields[fieldIndex]">
+              <select v-model="tl.graphs[graphIndex].fields[fieldIndex]">
                 <option
                   v-for="opt in fieldOptions"
                   :key="'field-opt-' + opt.name"
@@ -49,7 +49,7 @@
           <div class="control">
             <a
               class="button is-danger"
-              @click="graphs[graphIndex].fields.splice(fieldIndex, 1)"
+              @click="tl.graphs[graphIndex].fields.splice(fieldIndex, 1)"
             >
               <font-awesome-icon
                 icon="fa-solid fa-xmark"
@@ -64,7 +64,7 @@
       <div class="field has-addons">
         <div class="control">
           <div class="select">
-            <select v-model="fieldTemplate[graphIndex]">
+            <select v-model="tl.fieldTemplate[graphIndex]">
               <option :value="null">Select...</option>
               <option
                 v-for="opt in fieldOptions"
@@ -79,8 +79,8 @@
         <div class="control">
           <button
             class="button is-primary"
-            @click="addField(graphIndex)"
-            :disabled="fieldTemplate[graphIndex] == null"
+            @click="tl.addField(graphIndex)"
+            :disabled="tl.fieldTemplate[graphIndex] == null"
           >
             <font-awesome-icon icon="fa-solid fa-plus" size="lg" fixed-width />
           </button>
@@ -118,14 +118,15 @@ export default defineComponent({
     };
   },
   data() {
-    return {
-      fieldTemplate: [null],
-      graphs: [
-        {
-          fields: [] as any[],
-        },
-      ],
-    };
+    return {};
+  },
+  watch: {
+    "tl.graphs": {
+      handler(newValue) {
+        localStorage.setItem("timeline-graphs", JSON.stringify(newValue));
+      },
+      deep: true,
+    },
   },
   computed: {
     fieldOptions() {
@@ -141,18 +142,6 @@ export default defineComponent({
         }
         return [field];
       });
-    },
-  },
-  methods: {
-    addField(graphIndex: number) {
-      this.graphs[graphIndex].fields.push(this.fieldTemplate[graphIndex]);
-      this.fieldTemplate[graphIndex] = null;
-    },
-    addGraph() {
-      this.graphs.push({
-        fields: [] as any[],
-      });
-      this.fieldTemplate.push(null);
     },
   },
 });

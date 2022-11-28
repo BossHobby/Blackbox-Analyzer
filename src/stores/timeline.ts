@@ -7,6 +7,13 @@ export const useTimelineStore = defineStore("timeline", {
     zoom: 1000, // in ms
     colors: ["#FFBE0B", "#FF006E", "#8338Ec", "#3A86FF", "#FB5607"],
 
+    fieldTemplate: [null],
+    graphs: [
+      {
+        fields: [] as any[],
+      },
+    ],
+
     ready: false,
     _entries: 0,
     _duration: 0, // in ms
@@ -44,6 +51,14 @@ export const useTimelineStore = defineStore("timeline", {
       this._entries = entries;
       this._duration = duration;
       this.ready = true;
+      try {
+        const str = localStorage.getItem("timeline-graphs");
+        if (str) {
+          this.graphs = JSON.parse(str);
+        }
+      } catch (e: any) {
+        console.warn("error loading graphs from localStorage", e);
+      }
     },
     setCursor(pos: number) {
       this.cursor = Math.min(
@@ -73,6 +88,17 @@ export const useTimelineStore = defineStore("timeline", {
     setWindowHover(width: number, offset: number) {
       const pos = offset / width;
       this.hover = Math.min(Math.max(pos, 0), 1);
+    },
+
+    addField(graphIndex: number) {
+      this.graphs[graphIndex].fields.push(this.fieldTemplate[graphIndex]);
+      this.fieldTemplate[graphIndex] = null;
+    },
+    addGraph() {
+      this.graphs.push({
+        fields: [] as any[],
+      });
+      this.fieldTemplate.push(null);
     },
   },
 });
