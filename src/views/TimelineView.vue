@@ -1,5 +1,5 @@
 <template>
-  <h1 v-if="!tl.ready">No file loaded</h1>
+  <h1 class="title" v-if="!tl.ready">No file loaded</h1>
   <div style="margin-top: 60px; margin-bottom: 120px">
     <TimeGraphComponent
       v-for="(graph, index) in graphs"
@@ -96,12 +96,13 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
+
 import { useTimelineStore } from "@/stores/timeline";
 import { useRenderStore } from "@/stores/render";
+import { useBlackboxStore } from "@/stores/blackbox";
 
 import TimeGraphComponent from "@/components/TimeGraphComponent.vue";
 import TimelineComponent from "@/components/TimelineComponent.vue";
-import { useBlackboxStore } from "@/stores/blackbox";
 
 export default defineComponent({
   name: "TimelineView",

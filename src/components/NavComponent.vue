@@ -25,6 +25,13 @@
         <router-link active-class="is-active" class="navbar-item" to="/">
           Timeline
         </router-link>
+        <router-link
+          active-class="is-active"
+          class="navbar-item"
+          to="/spectrum"
+        >
+          Spectrum
+        </router-link>
       </div>
     </div>
 

@@ -1,4 +1,5 @@
 import { defineStore } from "pinia";
+import { useSpectrumStore } from "./spectrum";
 import { useTimelineStore } from "./timeline";
 
 export enum BlackboxFieldUnit {
@@ -41,8 +42,6 @@ export const useBlackboxStore = defineStore("blackbox", {
       }
     },
     async loadBlackbox() {
-      const timeline = useTimelineStore();
-
       const pickerOpts = {
         types: [
           {
@@ -89,7 +88,12 @@ export const useBlackboxStore = defineStore("blackbox", {
       this.duration =
         (this.entries[this.entries.length - 1].time - this.entries[0].time) /
         1000;
+
+      const timeline = useTimelineStore();
       timeline.initTimeline(this.entries.length, this.duration);
+
+      const spectrum = useSpectrumStore();
+      spectrum.initSpectrum();
     },
   },
 });
