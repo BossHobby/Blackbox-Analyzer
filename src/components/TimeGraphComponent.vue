@@ -14,7 +14,7 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
-import { useBlackboxStore } from "@/stores/blackbox";
+import { movingAvg, useBlackboxStore } from "@/stores/blackbox";
 import CanvasComponent from "@/components/CanvasComponent.vue";
 import { useTimelineStore } from "@/stores/timeline";
 import { Color } from "@/stores/render";
@@ -89,9 +89,19 @@ export default defineComponent({
             val = val[field.index];
           }
           val = this.bb.transform(field.name, val);
+          val = Math.pow(Math.abs(val), this.tl.expo) * Math.sign(val);
 
-          fields.range = Math.max(fields.range, Math.abs(val) * 1.2);
+          fields.range = Math.max(fields.range, Math.abs(val));
           fields.values[fieldIndex][entryIndex] = val;
+        }
+      }
+
+      if (this.tl.smoothing) {
+        for (let i = 0; i < fields.values.length; i++) {
+          const window = Math.round(
+            fields.values[i].length / (this.tl.smoothing * 10)
+          );
+          fields.values[i] = movingAvg(fields.values[i], window);
         }
       }
 

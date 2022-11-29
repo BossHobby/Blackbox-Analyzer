@@ -2,44 +2,12 @@
   <div class="spectrum-graph p-4">
     <CanvasComponent ref="canvas" @mousemove="mousemove" @draw="draw" />
   </div>
-  <div class="p-4">
-    Window
-    <input type="range" min="1" max="10" v-model="windowMul" step="1" />
-    {{ windowMul }}
-  </div>
-  <div class="p-4">
-    displayRangeX
-    <input
-      type="range"
-      min="1"
-      max="100"
-      v-model="displayRangeX"
-      step="0.001"
-    />
-    {{ displayRangeX }}
-  </div>
-  <div class="p-4">
-    displayRangeY
-    <input
-      type="range"
-      min="1"
-      max="1000"
-      v-model="displayRangeY"
-      step="0.01"
-    />
-    {{ displayRangeY }}
-  </div>
-  <div class="p-4">
-    frequency
-    <input type="range" min="1" max="1000" v-model="frequency" step="1" />
-    {{ frequency }}
-  </div>
 </template>
 
 <script lang="ts">
 import { defineComponent } from "vue";
 
-import { useBlackboxStore } from "@/stores/blackbox";
+import { movingAvg, useBlackboxStore } from "@/stores/blackbox";
 import { useSpectrumStore } from "@/stores/spectrum";
 import { Color } from "@/stores/render";
 
@@ -75,10 +43,10 @@ export default defineComponent({
     CanvasComponent,
   },
   props: {
-    fields: {
-      type: Array<Object>,
+    field: {
+      type: Object,
       default() {
-        return [];
+        return {};
       },
     },
   },
@@ -91,20 +59,20 @@ export default defineComponent({
   data() {
     return {
       graphPath: new Path2D(),
-      windowMul: 3,
-      hoverPos: 0,
-      frequency: 10,
-      displayRangeX: 1,
-      displayRangeY: 1,
-      sampleFrequency: 1000,
       paddingLeft: 48,
       paddingBottom: 24,
       drag: false,
     };
   },
   computed: {
+    sampleFrequency() {
+      return this.bb.rate * this.bb.looptime;
+    },
     canvas() {
       return this.$refs.canvas as HTMLCanvasElement;
+    },
+    plotWidth() {
+      return this.canvas.width - this.paddingLeft;
     },
     plotHeight() {
       return this.canvas.height - this.paddingBottom;
@@ -115,10 +83,16 @@ export default defineComponent({
     spectrumData() {
       const size =
         this.bb.entries.length - (this.bb.entries.length % 2 ? 1 : 0);
-
       const input = this.bb.entries
-        .map((bb) => bb.gyro_filter[0])
+        .map((entry) => {
+          let val = entry[this.field.name];
+          if (this.field.index != undefined) {
+            val = val[this.field.index];
+          }
+          return val;
+        })
         .slice(0, size);
+
       const windowedInput = applyWindow(input, hamming);
 
       let min = Infinity;
@@ -129,9 +103,8 @@ export default defineComponent({
       const freq = rfft(windowedInput as any);
       const power = new Array(freq.length / 4);
       for (let i = 0; i < power.length; i++) {
-        // +1 to skip the dc bin
-        const re = freq[(i + 1) * 2];
-        const im = freq[(i + 1) * 2 + 1];
+        const re = freq[i * 2];
+        const im = freq[i * 2 + 1];
         const real = Math.sqrt(re * re + im * im);
 
         let val = Math.pow(Math.abs(real), 2) * NC;
@@ -159,67 +132,61 @@ export default defineComponent({
       const data = this.spectrumData.power.map(
         (p) => p / this.spectrumData.range
       );
-      const tickWidth = (this.canvas.width - this.paddingLeft) / data.length;
+      const tickWidth = this.plotWidth / data.length;
       const path = new Path2D();
 
       path.moveTo(
         this.paddingLeft,
-        this.halfHeight - this.halfHeight * data[0] * this.displayRangeY
+        this.halfHeight - this.halfHeight * data[0] * this.sp.displayRangeY
       );
       for (let i = 0; i < data.length; i++) {
         path.lineTo(
-          this.paddingLeft + i * tickWidth * this.displayRangeX,
-          this.halfHeight - this.halfHeight * data[i] * this.displayRangeY
+          this.paddingLeft + i * tickWidth * this.sp.displayRangeX,
+          this.halfHeight - this.halfHeight * data[i] * this.sp.displayRangeY
         );
       }
       return path;
     },
+    movingAvgData() {
+      const input = this.spectrumData.power;
+      const window = Math.round(input.length / (this.sp.smoothing * 10));
+      return movingAvg(input, window);
+    },
     movingAvgPath() {
-      const data = this.spectrumData.power;
-      const window = data.length / (this.windowMul * 64);
-      const length = data.length + 1;
-
       const height = this.halfHeight;
-      const tickWidth = (this.canvas.width - this.paddingLeft) / data.length;
+      const data = this.movingAvgData.map((d) => d / this.spectrumData.range);
+      const tickWidth = this.plotWidth / data.length;
 
       const path = new Path2D();
       path.moveTo(
         this.paddingLeft,
-        height - height * data[0] * this.displayRangeY
+        height - height * data[0] * this.sp.displayRangeY
       );
-
-      let index = window - 1;
-      while (++index < length) {
-        const windowSlice = data.slice(index - window, index);
-        const val =
-          windowSlice.reduce((prev, curr) => prev + curr, 0) /
-          window /
-          this.spectrumData.range;
+      for (let i = 0; i < data.length; i++) {
         path.lineTo(
-          this.paddingLeft + index * tickWidth * this.displayRangeX,
-          height - height * val * this.displayRangeY
+          this.paddingLeft + i * tickWidth * this.sp.displayRangeX,
+          height - height * data[i] * this.sp.displayRangeY
         );
       }
       return path;
     },
     hoverValue() {
-      const tickWidth =
-        (this.canvas.width - this.paddingLeft) / this.spectrumData.power.length;
-      const hoverIndex = (this.hoverPos - this.paddingLeft) / tickWidth;
+      const tickWidth = this.plotWidth / this.movingAvgData.length;
+      const hoverIndex = (this.sp.hoverPos - this.paddingLeft) / tickWidth;
       const hoverIndexLower = Math.floor(hoverIndex);
       const hoverWeigthLower = hoverIndex - hoverIndexLower;
       const hoverIndexUpper = Math.ceil(hoverIndex);
       const hoverWeigthUpper = 1 - hoverWeigthLower;
 
-      const valUpper = this.spectrumData.power[hoverIndexUpper];
-      const valLower = this.spectrumData.power[hoverIndexLower];
+      const valUpper = this.movingAvgData[hoverIndexUpper];
+      const valLower = this.movingAvgData[hoverIndexLower];
       const val = valUpper * hoverWeigthUpper + valLower * hoverWeigthLower;
       return val.toFixed(2).toString();
     },
   },
   methods: {
     mousemove(e: MouseEvent) {
-      this.hoverPos = e.offsetX;
+      this.sp.hoverPos = Math.max(e.offsetX, this.paddingLeft);
     },
     draw(ctx: CanvasRenderingContext2D) {
       if (!this.sp.ready) {
@@ -258,7 +225,7 @@ export default defineComponent({
       for (let i = 1; i < freqTicks; i++) {
         ctx.fillText(
           (i * 50).toString() + "Hz",
-          this.paddingLeft + i * (this.canvas.width / freqTicks),
+          this.paddingLeft + i * (this.plotWidth / freqTicks),
           this.canvas.height
         );
       }
@@ -266,16 +233,17 @@ export default defineComponent({
       ctx.strokeStyle = Color.GRAY_LIGTH;
       ctx.beginPath();
       for (let i = 0; i < freqTicks; i++) {
-        ctx.moveTo(this.paddingLeft + i * (this.canvas.width / freqTicks), 0);
+        ctx.moveTo(this.paddingLeft + i * (this.plotWidth / freqTicks), 0);
         ctx.lineTo(
-          this.paddingLeft + i * (this.canvas.width / freqTicks),
+          this.paddingLeft + i * (this.plotWidth / freqTicks),
           this.plotHeight
         );
       }
       ctx.stroke();
 
-      //ctx.strokeStyle = Color.GREEN;
-      //ctx.stroke(this.spectrumPath);
+      ctx.lineWidth = 0.5;
+      ctx.strokeStyle = Color.GREEN;
+      ctx.stroke(this.spectrumPath);
 
       ctx.lineWidth = 2;
       ctx.strokeStyle = "#FF006E";
@@ -283,18 +251,25 @@ export default defineComponent({
 
       ctx.strokeStyle = Color.GREEN;
       ctx.beginPath();
-      ctx.moveTo(this.hoverPos, 0);
-      ctx.lineTo(this.hoverPos, this.canvas.height);
+      ctx.moveTo(this.sp.hoverPos, 0);
+      ctx.lineTo(this.sp.hoverPos, this.canvas.height);
       ctx.stroke();
 
       ctx.font = "14px Roboto Mono";
       ctx.fillStyle = Color.GREEN;
-      if (this.hoverPos > this.halfHeight) {
+      const freqPerPixel = this.sampleFrequency / 2 / this.plotWidth;
+      const hoverFreq = (
+        (this.sp.hoverPos - this.paddingLeft) *
+        freqPerPixel
+      ).toFixed(2);
+      if (this.sp.hoverPos > this.canvas.width / 2) {
         ctx.textAlign = "right";
-        ctx.fillText(this.hoverValue, this.hoverPos - 6, 20);
+        ctx.fillText(this.hoverValue + " dB", this.sp.hoverPos - 6, 20);
+        ctx.fillText(hoverFreq + " Hz", this.sp.hoverPos - 6, 40);
       } else {
         ctx.textAlign = "left";
-        ctx.fillText(this.hoverValue, this.hoverPos + 6, 20);
+        ctx.fillText(this.hoverValue + " dB", this.sp.hoverPos + 6, 20);
+        ctx.fillText(hoverFreq + " Hz", this.sp.hoverPos + 6, 40);
       }
     },
   },

@@ -16,6 +16,29 @@ export interface BlackboxFieldDef {
   unit: BlackboxFieldUnit;
 }
 
+export function movingAvg(input: number[], window: number) {
+  if (window == 0 || window == Infinity) {
+    return input;
+  }
+
+  const output: number[] = [];
+
+  let sum = 0;
+  for (let i = 0; i < window; ++i) {
+    sum += input[i];
+  }
+  output.push(sum / window);
+
+  const steps = input.length - window - 1;
+  for (let i = 0; i < steps; ++i) {
+    sum -= input[i];
+    sum += input[i + window];
+    output.push(sum / window);
+  }
+
+  return output;
+}
+
 export const useBlackboxStore = defineStore("blackbox", {
   state: () => ({
     rate: 0,

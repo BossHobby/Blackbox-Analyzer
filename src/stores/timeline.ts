@@ -14,6 +14,9 @@ export const useTimelineStore = defineStore("timeline", {
       },
     ],
 
+    smoothing: 10,
+    expo: 1,
+
     ready: false,
     _entries: 0,
     _duration: 0, // in ms
