@@ -162,8 +162,6 @@ export default defineComponent({
       const tickWidth = (this.canvas.width - this.paddingLeft) / data.length;
       const path = new Path2D();
 
-      console.log(this.spectrumData);
-
       path.moveTo(
         this.paddingLeft,
         this.halfHeight - this.halfHeight * data[0] * this.displayRangeY

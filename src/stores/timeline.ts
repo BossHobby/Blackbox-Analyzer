@@ -91,7 +91,26 @@ export const useTimelineStore = defineStore("timeline", {
     },
 
     addField(graphIndex: number) {
-      this.graphs[graphIndex].fields.push(this.fieldTemplate[graphIndex]);
+      const tmpl = this.fieldTemplate[graphIndex] as any;
+      if (!tmpl) {
+        return;
+      }
+
+      if (tmpl.group) {
+        for (let i = 0; i < tmpl.group; i++) {
+          const entry = {
+            ...tmpl,
+            title: tmpl.groupTitle + " " + tmpl.axis[i],
+            index: i,
+          };
+          delete entry.groupTitle;
+          delete entry.group;
+          this.graphs[graphIndex].fields.push(entry);
+        }
+      } else {
+        this.graphs[graphIndex].fields.push(tmpl);
+      }
+
       this.fieldTemplate[graphIndex] = null;
     },
     addGraph() {

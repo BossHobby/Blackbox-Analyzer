@@ -36,13 +36,23 @@
           <div class="control">
             <div class="select">
               <select v-model="tl.graphs[graphIndex].fields[fieldIndex]">
-                <option
-                  v-for="opt in fieldOptions"
-                  :key="'field-opt-' + opt.name"
-                  :value="opt"
+                <template
+                  v-for="(opt, index) in fieldOptions"
+                  :key="'field-optgtp-' + index"
                 >
-                  {{ opt.title }}
-                </option>
+                  <optgroup>
+                    <option
+                      v-for="o in opt.filter((o: any) => !o.group)"
+                      :key="'field-opt-' + o.name"
+                      :value="o"
+                    >
+                      {{ o.title }}
+                    </option>
+                    <option v-if="opt.length == 0" :value="opt">
+                      {{ opt.title }}
+                    </option>
+                  </optgroup>
+                </template>
               </select>
             </div>
           </div>
@@ -66,13 +76,23 @@
           <div class="select">
             <select v-model="tl.fieldTemplate[graphIndex]">
               <option :value="null">Select...</option>
-              <option
-                v-for="opt in fieldOptions"
-                :key="'field-opt-' + opt.name"
-                :value="opt"
+              <template
+                v-for="(opt, index) in fieldOptions"
+                :key="'field-create-optgtp-' + index"
               >
-                {{ opt.title }}
-              </option>
+                <optgroup>
+                  <option
+                    v-for="o in opt"
+                    :key="'field-create-opt-' + o.name"
+                    :value="o"
+                  >
+                    {{ o.title }}
+                  </option>
+                  <option v-if="opt.length == 0" :value="opt">
+                    {{ opt.title }}
+                  </option>
+                </optgroup>
+              </template>
             </select>
           </div>
         </div>
@@ -130,18 +150,34 @@ export default defineComponent({
   },
   computed: {
     fieldOptions() {
-      return Object.values(this.bb.fields).flatMap((field) => {
-        if (Array.isArray(field?.axis)) {
-          return field?.axis.map((name, index) => {
+      const options = [[]] as any[];
+      const fields = Object.values(this.bb.fields);
+
+      for (const field of fields) {
+        if (!Array.isArray(field?.axis)) {
+          options[0].push(field);
+          continue;
+        }
+
+        const opt: any[] = [
+          {
+            ...field,
+            title: field.title + " All",
+            groupTitle: field.title,
+            group: field?.axis.length,
+          },
+          ...field.axis.map((name, index) => {
             return {
               ...field,
               title: field.title + " " + name,
               index,
             };
-          });
-        }
-        return [field];
-      });
+          }),
+        ];
+        options.push(opt);
+      }
+
+      return options;
     },
   },
 });
@@ -164,7 +200,7 @@ export default defineComponent({
   box-shadow: -0.1em 0 0.125em rgb(8 8 8 / 30%);
 
   width: 0;
-  transition: width 400ms;
+  transition: all 400ms ease-in-out;
 
   & > * {
     opacity: 0;
