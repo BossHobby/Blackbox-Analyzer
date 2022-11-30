@@ -188,9 +188,10 @@ export default defineComponent({
 
           const delta = end - start;
           const pos = (start + delta / 2) / pixelsPer;
+          const cursor = this.tl.cursor - this.tl.zoom / 2 + pos;
 
           this.tl.setZoom(delta / pixelsPer);
-          this.tl.setCursor(pos);
+          this.tl.setCursor(cursor);
         }
         this.select = false;
       }
