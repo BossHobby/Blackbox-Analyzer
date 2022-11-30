@@ -21,6 +21,8 @@ export const useRenderStore = defineStore("render", {
     drawFunctionId: 1,
     drawFunctions: {} as { [index: string]: DrawFuntion },
     animationeFrameId: 0,
+
+    colors: ["#FFBE0B", "#FF006E", "#8338Ec", "#3A86FF", "#FB5607"],
   }),
 
   actions: {

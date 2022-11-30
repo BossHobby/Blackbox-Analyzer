@@ -17,7 +17,7 @@ import { defineComponent } from "vue";
 import { movingAvg, useBlackboxStore } from "@/stores/blackbox";
 import CanvasComponent from "@/components/CanvasComponent.vue";
 import { useTimelineStore } from "@/stores/timeline";
-import { Color } from "@/stores/render";
+import { Color, useRenderStore } from "@/stores/render";
 
 export default defineComponent({
   name: "TimeGraphComponent",
@@ -34,6 +34,7 @@ export default defineComponent({
   },
   setup() {
     return {
+      render: useRenderStore(),
       bb: useBlackboxStore(),
       tl: useTimelineStore(),
     };
@@ -219,9 +220,8 @@ export default defineComponent({
       }
       ctx.stroke();
 
-      let colorIndex = 0;
-      for (const path of this.graphPaths) {
-        ctx.strokeStyle = this.tl.colors[colorIndex++];
+      for (const [index, path] of this.graphPaths.entries()) {
+        ctx.strokeStyle = this.render.colors[index];
         ctx.stroke(path);
       }
 
@@ -245,13 +245,11 @@ export default defineComponent({
         ctx.fill();
       }
 
-      colorIndex = 0;
       ctx.font = "14px Roboto Mono";
       ctx.textAlign = "right";
-      for (const val of this.hoverValues) {
-        ctx.fillStyle = this.tl.colors[colorIndex];
-        ctx.fillText(val, hoverPos - 6, 20 * (colorIndex + 1));
-        colorIndex++;
+      for (const [index, val] of this.hoverValues.entries()) {
+        ctx.fillStyle = this.render.colors[index];
+        ctx.fillText(val, hoverPos - 6, 20 * (index + 1));
       }
     },
   },

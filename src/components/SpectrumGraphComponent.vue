@@ -9,7 +9,7 @@ import { defineComponent } from "vue";
 
 import { movingAvg, useBlackboxStore } from "@/stores/blackbox";
 import { useSpectrumStore } from "@/stores/spectrum";
-import { Color } from "@/stores/render";
+import { Color, useRenderStore } from "@/stores/render";
 
 import { rfft } from "kissfft-wasm";
 
@@ -43,15 +43,16 @@ export default defineComponent({
     CanvasComponent,
   },
   props: {
-    field: {
-      type: Object,
+    fields: {
+      type: Array<Object>,
       default() {
-        return {};
+        return [];
       },
     },
   },
   setup() {
     return {
+      render: useRenderStore(),
       bb: useBlackboxStore(),
       sp: useSpectrumStore(),
     };
@@ -81,107 +82,118 @@ export default defineComponent({
       return this.plotHeight / 2;
     },
     spectrumData() {
-      const size =
-        this.bb.entries.length - (this.bb.entries.length % 2 ? 1 : 0);
-      const input = this.bb.entries
-        .map((entry) => {
-          let val = entry[this.field.name];
-          if (this.field.index != undefined) {
-            val = val[this.field.index];
+      const res = {
+        min: Infinity,
+        max: 0,
+        range: 0,
+        power: [] as any[],
+      };
+
+      for (const field of this.fields as any[]) {
+        const size =
+          this.bb.entries.length - (this.bb.entries.length % 2 ? 1 : 0);
+        const input = this.bb.entries
+          .map((entry) => {
+            let val = entry[field.name];
+            if (field.index != undefined) {
+              val = val[field.index];
+            }
+            return val;
+          })
+          .slice(0, size);
+
+        const windowedInput = applyWindow(input, hamming);
+
+        const NC = 2.0 / (this.sampleFrequency * 1000 * size);
+        const freq = rfft(windowedInput as any);
+        const power = new Array(freq.length / 4);
+        for (let i = 0; i < power.length; i++) {
+          const re = freq[i * 2];
+          const im = freq[i * 2 + 1];
+          const real = Math.sqrt(re * re + im * im);
+
+          let val = Math.pow(Math.abs(real), 2) * NC;
+          if (val != 0) {
+            val = 10 * Math.log10(val);
           }
-          return val;
-        })
-        .slice(0, size);
-
-      const windowedInput = applyWindow(input, hamming);
-
-      let min = Infinity;
-      let max = 0;
-      let range = 0;
-
-      const NC = 2.0 / (this.sampleFrequency * 1000 * size);
-      const freq = rfft(windowedInput as any);
-      const power = new Array(freq.length / 4);
-      for (let i = 0; i < power.length; i++) {
-        const re = freq[i * 2];
-        const im = freq[i * 2 + 1];
-        const real = Math.sqrt(re * re + im * im);
-
-        let val = Math.pow(Math.abs(real), 2) * NC;
-        if (val != 0) {
-          val = 10 * Math.log10(val);
+          power[i] = val;
+          res.min = Math.min(res.min, val);
+          res.max = Math.max(res.max, val);
+          res.range = Math.max(res.range, Math.abs(val));
         }
-        power[i] = val;
-        min = Math.min(min, val);
-        max = Math.max(max, val);
-        range = Math.max(range, Math.abs(val));
+        res.power.push(power);
       }
 
-      range = Math.floor(range / 10) + 1;
-      range += range % 2;
-      range *= 10;
+      res.range = Math.floor(res.range / 10) + 1;
+      res.range += res.range % 2;
+      res.range *= 10;
 
-      return {
-        min,
-        max,
-        range,
-        power,
-      };
+      return res;
     },
     spectrumPath() {
-      const data = this.spectrumData.power.map(
-        (p) => p / this.spectrumData.range
-      );
-      const tickWidth = this.plotWidth / data.length;
-      const path = new Path2D();
+      const height =
+        this.spectrumData.min >= 0 ? this.plotHeight : this.halfHeight;
 
-      path.moveTo(
-        this.paddingLeft,
-        this.halfHeight - this.halfHeight * data[0] * this.sp.displayRangeY
-      );
-      for (let i = 0; i < data.length; i++) {
-        path.lineTo(
-          this.paddingLeft + i * tickWidth * this.sp.displayRangeX,
-          this.halfHeight - this.halfHeight * data[i] * this.sp.displayRangeY
+      return this.spectrumData.power.map((power) => {
+        const path = new Path2D();
+        const data = power.map((p: number) => p / this.spectrumData.range);
+        const tickWidth = this.plotWidth / data.length;
+
+        path.moveTo(
+          this.paddingLeft,
+          height - height * data[0] * this.sp.displayRangeY
         );
-      }
-      return path;
+        for (let i = 0; i < data.length; i++) {
+          path.lineTo(
+            this.paddingLeft + i * tickWidth * this.sp.displayRangeX,
+            height - height * data[i] * this.sp.displayRangeY
+          );
+        }
+        return path;
+      });
     },
     movingAvgData() {
-      const input = this.spectrumData.power;
-      const window = Math.round(input.length / (this.sp.smoothing * 10));
-      return movingAvg(input, window);
+      return this.spectrumData.power.map((input) => {
+        const window = Math.round(input.length / (this.sp.smoothing * 10));
+        return movingAvg(input, window);
+      });
     },
     movingAvgPath() {
-      const height = this.halfHeight;
-      const data = this.movingAvgData.map((d) => d / this.spectrumData.range);
-      const tickWidth = this.plotWidth / data.length;
+      const height =
+        this.spectrumData.min >= 0 ? this.plotHeight : this.halfHeight;
 
-      const path = new Path2D();
-      path.moveTo(
-        this.paddingLeft,
-        height - height * data[0] * this.sp.displayRangeY
-      );
-      for (let i = 0; i < data.length; i++) {
-        path.lineTo(
-          this.paddingLeft + i * tickWidth * this.sp.displayRangeX,
-          height - height * data[i] * this.sp.displayRangeY
+      return this.movingAvgData.map((avg) => {
+        const data = avg.map((d) => d / this.spectrumData.range);
+        const tickWidth = this.plotWidth / data.length;
+
+        const path = new Path2D();
+        path.moveTo(
+          this.paddingLeft,
+          height - height * data[0] * this.sp.displayRangeY
         );
-      }
-      return path;
+        for (let i = 0; i < data.length; i++) {
+          path.lineTo(
+            this.paddingLeft + i * tickWidth * this.sp.displayRangeX,
+            height - height * data[i] * this.sp.displayRangeY
+          );
+        }
+        return path;
+      });
     },
     hoverValue() {
-      const tickWidth = this.plotWidth / this.movingAvgData.length;
+      const tickWidth = this.plotWidth / this.movingAvgData[0].length;
       const hoverIndex = (this.sp.hoverPos - this.paddingLeft) / tickWidth;
       const hoverIndexLower = Math.floor(hoverIndex);
       const hoverWeigthLower = hoverIndex - hoverIndexLower;
       const hoverIndexUpper = Math.ceil(hoverIndex);
       const hoverWeigthUpper = 1 - hoverWeigthLower;
 
-      const valUpper = this.movingAvgData[hoverIndexUpper];
-      const valLower = this.movingAvgData[hoverIndexLower];
-      const val = valUpper * hoverWeigthUpper + valLower * hoverWeigthLower;
-      return val.toFixed(2).toString();
+      return this.movingAvgData.map((data) => {
+        const valUpper = data[hoverIndexUpper];
+        const valLower = data[hoverIndexLower];
+        const val = valUpper * hoverWeigthUpper + valLower * hoverWeigthLower;
+        return val.toFixed(2).toString();
+      });
     },
   },
   methods: {
@@ -195,7 +207,7 @@ export default defineComponent({
 
       ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-      let divs = this.spectrumData.range / 10;
+      let divs = Math.min(this.spectrumData.range / 10, 10);
 
       ctx.strokeStyle = Color.GRAY_LIGTH;
       ctx.beginPath();
@@ -241,13 +253,17 @@ export default defineComponent({
       }
       ctx.stroke();
 
-      ctx.lineWidth = 0.5;
-      ctx.strokeStyle = Color.GREEN;
-      ctx.stroke(this.spectrumPath);
+      //ctx.lineWidth = 0.5;
+      //for (const path of this.spectrumPath) {
+      //ctx.strokeStyle = Color.GREEN;
+      //ctx.stroke(path);
+      //}
 
       ctx.lineWidth = 2;
-      ctx.strokeStyle = "#FF006E";
-      ctx.stroke(this.movingAvgPath);
+      for (const [index, path] of this.movingAvgPath.entries()) {
+        ctx.strokeStyle = this.render.colors[index];
+        ctx.stroke(path);
+      }
 
       ctx.strokeStyle = Color.GREEN;
       ctx.beginPath();
@@ -264,12 +280,16 @@ export default defineComponent({
       ).toFixed(2);
       if (this.sp.hoverPos > this.canvas.width / 2) {
         ctx.textAlign = "right";
-        ctx.fillText(this.hoverValue + " dB", this.sp.hoverPos - 6, 20);
-        ctx.fillText(hoverFreq + " Hz", this.sp.hoverPos - 6, 40);
+        ctx.fillText(hoverFreq + " Hz", this.sp.hoverPos - 6, 20);
+        for (const [index, val] of this.hoverValue.entries()) {
+          ctx.fillText(val + " dB", this.sp.hoverPos - 6, index * 20 + 40);
+        }
       } else {
         ctx.textAlign = "left";
-        ctx.fillText(this.hoverValue + " dB", this.sp.hoverPos + 6, 20);
-        ctx.fillText(hoverFreq + " Hz", this.sp.hoverPos + 6, 40);
+        ctx.fillText(hoverFreq + " Hz", this.sp.hoverPos + 6, 20);
+        for (const [index, val] of this.hoverValue.entries()) {
+          ctx.fillText(val + " dB", this.sp.hoverPos + 6, index * 20 + 40);
+        }
       }
     },
   },

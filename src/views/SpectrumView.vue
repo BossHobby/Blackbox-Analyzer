@@ -2,9 +2,9 @@
   <h1 class="title" v-if="!sp.ready">No file loaded</h1>
   <div v-else>
     <SpectrumGraphComponent
-      v-for="(field, index) of fields"
+      v-for="(graph, index) of graphs"
       :key="'spectrum-' + index"
-      :field="field"
+      :fields="graph.fields"
     />
   </div>
 
@@ -30,7 +30,7 @@
       <input
         type="range"
         min="1"
-        max="10"
+        max="1000"
         v-model="sp.displayRangeY"
         step="0.001"
       />
@@ -60,10 +60,16 @@ export default defineComponent({
   },
   data() {
     return {
-      fields: [
-        { name: "gyro_raw", index: 0 },
-        { name: "gyro_raw", index: 1 },
-        { name: "gyro_raw", index: 2 },
+      graphs: [
+        {
+          fields: [
+            { name: "gyro_raw", index: 0 },
+            { name: "gyro_filter", index: 0 },
+          ],
+        },
+        {
+          fields: [{ name: "pid_dterm", index: 0 }],
+        },
       ],
     };
   },

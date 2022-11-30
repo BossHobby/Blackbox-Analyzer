@@ -5,7 +5,6 @@ export const useTimelineStore = defineStore("timeline", {
     cursor: 500, // in ms
     hover: 0.5, // in % of zoom/window
     zoom: 1000, // in ms
-    colors: ["#FFBE0B", "#FF006E", "#8338Ec", "#3A86FF", "#FB5607"],
 
     fieldTemplate: [null],
     graphs: [
