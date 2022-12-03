@@ -14,7 +14,7 @@
       <input
         type="range"
         min="0"
-        max="100"
+        max="10"
         v-model.lazy="tl.smoothing"
         step="1"
       />
@@ -55,7 +55,7 @@
             <div class="select">
               <select v-model="tl.graphs[graphIndex].fields[fieldIndex]">
                 <template
-                  v-for="(opt, index) in fieldOptions"
+                  v-for="(opt, index) in bb.fieldOptions"
                   :key="'field-optgtp-' + index"
                 >
                   <optgroup>
@@ -95,7 +95,7 @@
             <select v-model="tl.fieldTemplate[graphIndex]">
               <option :value="null">Select...</option>
               <template
-                v-for="(opt, index) in fieldOptions"
+                v-for="(opt, index) in bb.fieldOptions"
                 :key="'field-create-optgtp-' + index"
               >
                 <optgroup>
@@ -166,38 +166,7 @@ export default defineComponent({
       deep: true,
     },
   },
-  computed: {
-    fieldOptions() {
-      const options = [[]] as any[];
-      const fields = Object.values(this.bb.fields);
-
-      for (const field of fields) {
-        if (!Array.isArray(field?.axis)) {
-          options[0].push(field);
-          continue;
-        }
-
-        const opt: any[] = [
-          {
-            ...field,
-            title: field.title + " All",
-            groupTitle: field.title,
-            group: field?.axis.length,
-          },
-          ...field.axis.map((name, index) => {
-            return {
-              ...field,
-              title: field.title + " " + name,
-              index,
-            };
-          }),
-        ];
-        options.push(opt);
-      }
-
-      return options;
-    },
-  },
+  computed: {},
 });
 </script>
 

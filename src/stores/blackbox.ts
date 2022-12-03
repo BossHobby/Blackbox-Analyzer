@@ -51,6 +51,36 @@ export const useBlackboxStore = defineStore("blackbox", {
     entriesPerMS(state) {
       return 1000 / state.looptime / state.rate;
     },
+    fieldOptions() {
+      const options = [[]] as any[];
+      const fields = Object.values(this.fields);
+
+      for (const field of fields) {
+        if (!Array.isArray(field?.axis)) {
+          options[0].push(field);
+          continue;
+        }
+
+        const opt: any[] = [
+          {
+            ...field,
+            title: field.title + " All",
+            groupTitle: field.title,
+            group: field?.axis.length,
+          },
+          ...field.axis.map((name, index) => {
+            return {
+              ...field,
+              title: field.title + " " + name,
+              index,
+            };
+          }),
+        ];
+        options.push(opt);
+      }
+
+      return options;
+    },
   },
   actions: {
     transform(name: string, val: number) {

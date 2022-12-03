@@ -181,6 +181,10 @@ export default defineComponent({
       });
     },
     hoverValue() {
+      if (!this.movingAvgData || !this.movingAvgData.length) {
+        return [];
+      }
+
       const tickWidth = this.plotWidth / this.movingAvgData[0].length;
       const hoverIndex = (this.sp.hoverPos - this.paddingLeft) / tickWidth;
       const hoverIndexLower = Math.floor(hoverIndex);
@@ -282,12 +286,14 @@ export default defineComponent({
         ctx.textAlign = "right";
         ctx.fillText(hoverFreq + " Hz", this.sp.hoverPos - 6, 20);
         for (const [index, val] of this.hoverValue.entries()) {
+          ctx.fillStyle = this.render.colors[index];
           ctx.fillText(val + " dB", this.sp.hoverPos - 6, index * 20 + 40);
         }
       } else {
         ctx.textAlign = "left";
         ctx.fillText(hoverFreq + " Hz", this.sp.hoverPos + 6, 20);
         for (const [index, val] of this.hoverValue.entries()) {
+          ctx.fillStyle = this.render.colors[index];
           ctx.fillText(val + " dB", this.sp.hoverPos + 6, index * 20 + 40);
         }
       }
