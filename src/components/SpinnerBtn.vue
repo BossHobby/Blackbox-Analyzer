@@ -22,7 +22,7 @@ export default defineComponent({
   computed: {
     filteredAttrs() {
       const onRE = /^on[^a-z]/;
-      const attributes = {};
+      const attributes: any = {};
       const { $attrs } = this;
 
       for (const property in $attrs) {
@@ -34,7 +34,7 @@ export default defineComponent({
     },
   },
   methods: {
-    clickHandler(event) {
+    clickHandler(event: any) {
       const click = this.$attrs.onClick as any;
 
       this.loading = true;
