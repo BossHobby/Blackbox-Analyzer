@@ -15,6 +15,7 @@
     "lib": [
       "ES2019.Array",
       "ES2017.Object",
+      "ES2018",
       "ES2016",
       "DOM",
       "DOM.Iterable"

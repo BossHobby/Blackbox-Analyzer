@@ -15,6 +15,14 @@ export default defineConfig({
           src: "node_modules/kissfft-wasm/lib/kissfft.wasm",
           dest: ".",
         },
+        {
+          src: "node_modules/kissfft-wasm/lib/kissfft.wasm",
+          dest: "src/worker",
+        },
+        {
+          src: "node_modules/kissfft-wasm/lib/kissfft.wasm",
+          dest: "assets",
+        },
       ],
     }),
     topLevelAwait(),
@@ -25,5 +33,8 @@ export default defineConfig({
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
+  },
+  worker: {
+    format: "es",
   },
 });

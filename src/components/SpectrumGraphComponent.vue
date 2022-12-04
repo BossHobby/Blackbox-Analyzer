@@ -10,32 +10,9 @@ import { defineComponent } from "vue";
 import { movingAvg, useBlackboxStore } from "@/stores/blackbox";
 import { useSpectrumStore } from "@/stores/spectrum";
 import { Color, useRenderStore } from "@/stores/render";
-
-import { rfft } from "kissfft-wasm";
+import { runFFTWorker } from "@/worker";
 
 import CanvasComponent from "@/components/CanvasComponent.vue";
-
-function hamming(i: number, N: number) {
-  return 0.54 - 0.46 * Math.cos((6.283185307179586 * i) / (N - 1));
-}
-
-function applyWindow(signal: number[], func: any) {
-  var i,
-    n = signal.length,
-    args = [0, n];
-
-  // pass rest of args
-  for (i = 2; i < arguments.length; i++) {
-    args[i] = arguments[i];
-  }
-
-  for (i = n - 1; i >= 0; i--) {
-    args[0] = i;
-    signal[i] *= func.apply(null, args);
-  }
-
-  return signal;
-}
 
 export default defineComponent({
   name: "SpectrumGraphComponent",
@@ -59,18 +36,27 @@ export default defineComponent({
   },
   data() {
     return {
-      graphPath: new Path2D(),
       paddingLeft: 48,
       paddingBottom: 24,
+
+      spectrumData: {
+        min: Infinity,
+        max: 0,
+        range: 40,
+        power: [] as any[],
+      },
+
+      loading: false,
+      loadingStart: 0,
       drag: false,
     };
   },
   computed: {
-    sampleFrequency() {
-      return this.bb.rate * this.bb.looptime;
-    },
     canvas() {
       return this.$refs.canvas as HTMLCanvasElement;
+    },
+    sampleFrequency() {
+      return this.bb.rate * this.bb.looptime;
     },
     plotWidth() {
       return this.canvas.width - this.paddingLeft;
@@ -81,18 +67,12 @@ export default defineComponent({
     halfHeight() {
       return this.plotHeight / 2;
     },
-    spectrumData() {
-      const res = {
-        min: Infinity,
-        max: 0,
-        range: 0,
-        power: [] as any[],
-      };
+    specturmInput() {
+      const size =
+        this.bb.entries.length - (this.bb.entries.length % 2 ? 1 : 0);
 
-      for (const field of this.fields as any[]) {
-        const size =
-          this.bb.entries.length - (this.bb.entries.length % 2 ? 1 : 0);
-        const input = this.bb.entries
+      return this.fields.map((field: any) => {
+        return this.bb.entries
           .map((entry) => {
             let val = entry[field.name];
             if (field.index != undefined) {
@@ -101,34 +81,7 @@ export default defineComponent({
             return val;
           })
           .slice(0, size);
-
-        const windowedInput = applyWindow(input, hamming);
-
-        const NC = 2.0 / (this.sampleFrequency * 1000 * size);
-        const freq = rfft(windowedInput as any);
-        const power = new Array(freq.length / 4);
-        for (let i = 0; i < power.length; i++) {
-          const re = freq[i * 2];
-          const im = freq[i * 2 + 1];
-          const real = Math.sqrt(re * re + im * im);
-
-          let val = Math.pow(Math.abs(real), 2) * NC;
-          if (val != 0) {
-            val = 10 * Math.log10(val);
-          }
-          power[i] = val;
-          res.min = Math.min(res.min, val);
-          res.max = Math.max(res.max, val);
-          res.range = Math.max(res.range, Math.abs(val));
-        }
-        res.power.push(power);
-      }
-
-      res.range = Math.floor(res.range / 10) + 1;
-      res.range += res.range % 2;
-      res.range *= 10;
-
-      return res;
+      });
     },
     spectrumPath() {
       const height =
@@ -200,6 +153,38 @@ export default defineComponent({
       });
     },
   },
+  watch: {
+    async specturmInput(inputs: number[][]) {
+      this.loadingStart = performance.now();
+      this.loading = true;
+
+      const data = {
+        min: Infinity,
+        max: 0,
+        range: 0,
+        power: [] as any[],
+      };
+
+      const promises = inputs.map((input) =>
+        runFFTWorker({ sampleFrequency: this.sampleFrequency, input })
+      );
+
+      for (const res of await Promise.all(promises)) {
+        data.min = Math.min(data.min, res.min);
+        data.max = Math.max(data.max, res.max);
+        data.range = Math.max(data.range, res.range);
+        data.power.push(res.power);
+      }
+
+      data.range = Math.floor(data.range / 10) + 1;
+      data.range += data.range % 2;
+      data.range *= 10;
+
+      this.spectrumData = data;
+      this.loading = false;
+      console.log(performance.now() - this.loadingStart);
+    },
+  },
   methods: {
     mousemove(e: MouseEvent) {
       this.sp.hoverPos = Math.max(e.offsetX, this.paddingLeft);
@@ -257,45 +242,51 @@ export default defineComponent({
       }
       ctx.stroke();
 
-      //ctx.lineWidth = 0.5;
-      //for (const path of this.spectrumPath) {
-      //ctx.strokeStyle = Color.GREEN;
-      //ctx.stroke(path);
-      //}
-
-      ctx.lineWidth = 2;
-      for (const [index, path] of this.movingAvgPath.entries()) {
-        ctx.strokeStyle = this.render.colors[index];
-        ctx.stroke(path);
-      }
-
-      ctx.strokeStyle = Color.GREEN;
-      ctx.beginPath();
-      ctx.moveTo(this.sp.hoverPos, 0);
-      ctx.lineTo(this.sp.hoverPos, this.canvas.height);
-      ctx.stroke();
-
-      ctx.font = "14px Roboto Mono";
-      ctx.fillStyle = Color.GREEN;
-      const freqPerPixel = this.sampleFrequency / 2 / this.plotWidth;
-      const hoverFreq = (
-        (this.sp.hoverPos - this.paddingLeft) *
-        freqPerPixel
-      ).toFixed(2);
-      if (this.sp.hoverPos > this.canvas.width / 2) {
-        ctx.textAlign = "right";
-        ctx.fillText(hoverFreq + " Hz", this.sp.hoverPos - 6, 20);
-        for (const [index, val] of this.hoverValue.entries()) {
-          ctx.fillStyle = this.render.colors[index];
-          ctx.fillText(val + " dB", this.sp.hoverPos - 6, index * 20 + 40);
-        }
+      if (this.loading) {
+        ctx.font = "32px Roboto Mono";
+        ctx.fillStyle = Color.GREEN;
+        ctx.fillText("loading...", this.plotWidth / 2, this.plotHeight / 2);
       } else {
-        ctx.textAlign = "left";
-        ctx.fillText(hoverFreq + " Hz", this.sp.hoverPos + 6, 20);
+        ctx.lineWidth = 0.5;
+        for (const [index, path] of this.spectrumPath.entries()) {
+          ctx.strokeStyle = this.render.colors[index];
+          ctx.stroke(path);
+        }
+
+        ctx.lineWidth = 2;
+        for (const [index, path] of this.movingAvgPath.entries()) {
+          ctx.strokeStyle = Color.GREEN;
+          ctx.stroke(path);
+        }
+
+        ctx.font = "14px Roboto Mono";
+        ctx.fillStyle = Color.GREEN;
+        const freqPerPixel = this.sampleFrequency / 2 / this.plotWidth;
+        const hoverFreq = (
+          (this.sp.hoverPos - this.paddingLeft) *
+          freqPerPixel
+        ).toFixed(2);
+
+        let hoverTextPos = 0;
+        if (this.sp.hoverPos > this.canvas.width / 2) {
+          ctx.textAlign = "right";
+          hoverTextPos = this.sp.hoverPos - 6;
+        } else {
+          ctx.textAlign = "left";
+          hoverTextPos = this.sp.hoverPos + 6;
+        }
+
+        ctx.fillText(hoverFreq + " Hz", hoverTextPos, 20);
         for (const [index, val] of this.hoverValue.entries()) {
           ctx.fillStyle = this.render.colors[index];
-          ctx.fillText(val + " dB", this.sp.hoverPos + 6, index * 20 + 40);
+          ctx.fillText(val + " dB", hoverTextPos, index * 20 + 40);
         }
+
+        ctx.strokeStyle = Color.GREEN;
+        ctx.beginPath();
+        ctx.moveTo(this.sp.hoverPos, 0);
+        ctx.lineTo(this.sp.hoverPos, this.canvas.height);
+        ctx.stroke();
       }
     },
   },
