@@ -7,7 +7,7 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 
-import { useBlackboxStore } from "@/stores/blackbox";
+import { BlackboxFieldIdentifier, useBlackboxStore } from "@/stores/blackbox";
 import { useSpectrumStore } from "@/stores/spectrum";
 import { Color, useRenderStore } from "@/stores/render";
 
@@ -66,23 +66,22 @@ export default defineComponent({
     halfHeight() {
       return this.plotHeight / 2;
     },
+    spectrumFields() {
+      return this.fields.map((field: any) => {
+        return {
+          id: new BlackboxFieldIdentifier(field.name, field.index),
+          ...this.bb.fields[field.name],
+          ...field,
+        };
+      });
+    },
     specturmInput() {
       const size =
-        this.bb.entries.length - (this.bb.entries.length % 2 ? 1 : 0);
+        this.bb.entries.time.length - (this.bb.entries.time.length % 2 ? 1 : 0);
 
-      return this.fields
-        .map((field: any) => {
-          return this.bb.entries
-            .map((entry) => {
-              let val = entry[field.name];
-              if (field.index != undefined) {
-                val = val[field.index];
-              }
-              return val;
-            })
-            .slice(0, size);
-        })
-        .map((array) => Float32Array.from(array));
+      return this.spectrumFields.map((field) => {
+        return this.bb.entries[field.id.toString()].slice(0, size);
+      });
     },
     specturmDataDecimated() {
       return this.spectrumData.power.map((power) =>
@@ -123,16 +122,34 @@ export default defineComponent({
       const hoverIndexUpper = Math.ceil(hoverIndex);
       const hoverWeigthUpper = 1 - hoverWeigthLower;
 
-      return this.specturmDataDecimated.map((data) => {
-        const valUpper = data[hoverIndexUpper];
-        const valLower = data[hoverIndexLower];
-        const val = valUpper * hoverWeigthUpper + valLower * hoverWeigthLower;
-        return val.toFixed(2).toString();
-      });
+      let maxLen = 0;
+      return this.spectrumFields
+        .map((field, fieldIndex) => {
+          const valUpper =
+            this.specturmDataDecimated[fieldIndex][hoverIndexUpper];
+          const valLower =
+            this.specturmDataDecimated[fieldIndex][hoverIndexLower];
+          const val = valUpper * hoverWeigthUpper + valLower * hoverWeigthLower;
+          const str = val.toFixed(2).toString();
+          maxLen = Math.max(maxLen, str.length);
+          return { field, str };
+        })
+        .map(({ field, str }) => {
+          while (str.length < maxLen) str = " " + str;
+          return field.title + " " + str;
+        });
     },
   },
   watch: {
     async specturmInput(inputs: Float32Array[]) {
+      this.updateSpectrumInput(inputs);
+    },
+  },
+  methods: {
+    mousemove(e: MouseEvent) {
+      this.sp.hoverPos = Math.max(e.offsetX, this.paddingLeft);
+    },
+    async updateSpectrumInput(inputs: Float32Array[]) {
       const loadingStart = performance.now();
       this.loading = true;
 
@@ -162,11 +179,6 @@ export default defineComponent({
       this.loading = false;
 
       console.log("specturmInput took", performance.now() - loadingStart, "ms");
-    },
-  },
-  methods: {
-    mousemove(e: MouseEvent) {
-      this.sp.hoverPos = Math.max(e.offsetX, this.paddingLeft);
     },
     draw(ctx: CanvasRenderingContext2D) {
       if (!this.sp.ready) {
@@ -249,7 +261,7 @@ export default defineComponent({
           hoverTextPos = this.sp.hoverPos + 6;
         }
 
-        ctx.fillText(hoverFreq + " Hz", hoverTextPos, 20);
+        ctx.fillText("Frequency " + hoverFreq + " Hz", hoverTextPos, 20);
         for (const [index, val] of this.hoverValue.entries()) {
           ctx.fillStyle = this.render.colors[index];
           ctx.fillText(val + " dB", hoverTextPos, index * 20 + 40);
@@ -262,6 +274,9 @@ export default defineComponent({
         ctx.stroke();
       }
     },
+  },
+  created() {
+    this.updateSpectrumInput(this.specturmInput);
   },
 });
 </script>

@@ -16,27 +16,19 @@ export interface BlackboxFieldDef {
   unit: BlackboxFieldUnit;
 }
 
-export function movingAvg(input: number[], window: number) {
-  if (window == 0 || window == Infinity) {
-    return input;
+export class BlackboxFieldIdentifier {
+  constructor(public name: string, public index?: number) {}
+
+  public toString() {
+    if (this.index != undefined) {
+      return this.name + "_" + this.index;
+    }
+    return this.name;
   }
 
-  const output: number[] = [];
-
-  let sum = 0;
-  for (let i = 0; i < window; ++i) {
-    sum += input[i];
+  public static toString(name: string, index?: number) {
+    return new BlackboxFieldIdentifier(name, index).toString();
   }
-  output.push(sum / window);
-
-  const steps = input.length - window - 1;
-  for (let i = 0; i < steps; ++i) {
-    sum -= input[i];
-    sum += input[i + window];
-    output.push(sum / window);
-  }
-
-  return output;
 }
 
 export const useBlackboxStore = defineStore("blackbox", {
@@ -45,7 +37,7 @@ export const useBlackboxStore = defineStore("blackbox", {
     looptime: 0,
     duration: 0,
     fields: {} as { [index: string]: BlackboxFieldDef },
-    entries: [] as any[],
+    entries: {} as { [index: string]: Float32Array },
   }),
   getters: {
     entriesPerMS(state) {
@@ -123,27 +115,35 @@ export const useBlackboxStore = defineStore("blackbox", {
         {}
       );
 
-      const fieldKeys = Object.keys(this.fields);
-      let entries = new Array(blackbox.entries.length);
-      for (let j = 0; j < blackbox.entries.length; j++) {
-        entries[j] = {};
-        for (let i = 0; i < fieldKeys.length; i++) {
-          entries[j][fieldKeys[i]] = blackbox.entries[j][i];
+      const entries = {} as { [index: string]: Float32Array };
+      for (const [fieldIndex, field] of Object.values(this.fields).entries()) {
+        let fields = [new BlackboxFieldIdentifier(field.name)];
+        if (field.axis) {
+          fields = field.axis.map(
+            (_, index) => new BlackboxFieldIdentifier(field.name, index)
+          );
         }
-        if (entries[j].time == undefined) {
-          console.warn("blackbox: invalid entry", j);
-          entries = entries.slice(0, j);
-          break;
+        for (const id of fields) {
+          const values = blackbox.entries.map((entry: any) => {
+            let val = entry[fieldIndex];
+            if (id.index != undefined) {
+              val = val[id.index];
+            }
+            return val;
+          });
+
+          entries[id.toString()] = Float32Array.from(values);
         }
       }
       this.entries = entries;
 
       this.duration =
-        (this.entries[this.entries.length - 1].time - this.entries[0].time) /
+        (this.entries.time[this.entries.time.length - 1] -
+          this.entries.time[0]) /
         1000;
 
       const timeline = useTimelineStore();
-      timeline.initTimeline(this.entries.length, this.duration);
+      timeline.initTimeline(this.entries.time.length, this.duration);
 
       const spectrum = useSpectrumStore();
       spectrum.initSpectrum();

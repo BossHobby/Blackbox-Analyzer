@@ -10,18 +10,6 @@
 
   <div class="sidebar" :class="{ 'is-visible': render.sidebar }">
     <div class="p-2">
-      Smoothing
-      <input
-        type="range"
-        min="0"
-        max="10"
-        v-model.lazy="tl.smoothing"
-        step="1"
-      />
-      {{ tl.smoothing }}
-    </div>
-
-    <div class="p-2">
       Expo
       <input type="range" min="0" max="1" v-model.lazy="tl.expo" step="0.01" />
       {{ tl.expo }}

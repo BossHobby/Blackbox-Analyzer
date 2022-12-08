@@ -1,5 +1,7 @@
 import { defineStore } from "pinia";
 
+const ZOOM_MIN = 100;
+
 export const useTimelineStore = defineStore("timeline", {
   state: () => ({
     cursor: 500, // in ms
@@ -13,7 +15,6 @@ export const useTimelineStore = defineStore("timeline", {
       },
     ],
 
-    smoothing: 10,
     expo: 1,
 
     ready: false,
@@ -75,12 +76,15 @@ export const useTimelineStore = defineStore("timeline", {
       );
     },
     setZoom(delta: number) {
-      this.zoom = Math.min(Math.max(Math.round(delta), 4), this._duration);
+      this.zoom = Math.min(
+        Math.max(Math.round(delta), ZOOM_MIN),
+        this._duration * 0.1
+      );
     },
     modifyZoom(delta: number) {
       this.zoom = Math.min(
-        Math.max(Math.round(this.zoom + this.zoom * delta), 4),
-        this._duration
+        Math.max(Math.round(this.zoom + this.zoom * delta), ZOOM_MIN),
+        this._duration * 0.1
       );
       this.cursor = Math.min(
         Math.max(this.cursor, this.zoom / 2),

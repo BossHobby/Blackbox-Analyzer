@@ -16,4 +16,8 @@ export class Analysis {
   public static decimate(width: number, input: Float32Array) {
     return Analysis.wasm.decimate(width, input);
   }
+
+  public static moving_avg(window: number, input: Float32Array) {
+    return Analysis.wasm.moving_avg(window, input);
+  }
 }

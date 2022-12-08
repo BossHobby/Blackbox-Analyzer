@@ -14,10 +14,11 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
-import { movingAvg, useBlackboxStore } from "@/stores/blackbox";
+import { BlackboxFieldIdentifier, useBlackboxStore } from "@/stores/blackbox";
 import CanvasComponent from "@/components/CanvasComponent.vue";
 import { useTimelineStore } from "@/stores/timeline";
 import { Color, useRenderStore } from "@/stores/render";
+import { Analysis } from "@/analysis";
 
 export default defineComponent({
   name: "TimeGraphComponent",
@@ -72,6 +73,7 @@ export default defineComponent({
     graphFields() {
       return this.fields.map((field: any) => {
         return {
+          id: new BlackboxFieldIdentifier(field.name, field.index),
           ...this.bb.fields[field.name],
           ...field,
         };
@@ -80,43 +82,36 @@ export default defineComponent({
     graphValues() {
       const fields = {
         range: 0,
-        values: this.graphFields.map(() => new Array(this.bb.entries.length)),
+        values: this.graphFields.map((field) => {
+          return this.bb.entries[field.id.toString()].slice(0);
+        }),
       };
 
-      for (const [entryIndex, entry] of this.bb.entries.entries()) {
-        for (const [fieldIndex, field] of this.graphFields.entries()) {
-          let val = entry[field.name];
-          if (field.index != undefined) {
-            val = val[field.index];
-          }
+      for (let i = 0; i < fields.values.length; i++) {
+        const field = this.graphFields[i];
+        for (let j = 0; j < fields.values[i].length; j++) {
+          let val = fields.values[i][j];
           val = this.bb.transform(field.name, val);
           val = Math.pow(Math.abs(val), this.tl.expo) * Math.sign(val);
 
           fields.range = Math.max(fields.range, Math.abs(val));
-          fields.values[fieldIndex][entryIndex] = val;
+          fields.values[i][j] = val;
         }
       }
 
-      if (this.tl.smoothing) {
-        for (let i = 0; i < fields.values.length; i++) {
-          const window = Math.round(
-            fields.values[i].length / (this.tl.smoothing * 10)
-          );
-          fields.values[i] = movingAvg(fields.values[i], window);
-        }
+      for (let i = 0; i < fields.values.length; i++) {
+        fields.values[i] = Analysis.moving_avg(1, fields.values[i]);
       }
 
       return fields;
     },
     graphPaths() {
-      return this.graphFields.map((_, fieldIndex) => {
+      return this.graphValues.values.map((field) => {
         const path = new Path2D();
 
-        path.moveTo(0, this.halfHeight);
+        path.moveTo(field[0], this.halfHeight);
         for (let i = 0; i < this.windowSize; i++) {
-          const val =
-            this.graphValues.values[fieldIndex][this.windowOffset + i] /
-            this.graphValues.range;
+          const val = field[this.windowOffset + i] / this.graphValues.range;
           path.lineTo(
             i * this.tickWidth,
             val * -1 * this.halfHeight + this.halfHeight

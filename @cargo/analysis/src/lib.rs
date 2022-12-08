@@ -78,4 +78,23 @@ impl Analysis {
 
         return res.into_boxed_slice();
     }
+
+    pub fn moving_avg(&self, window: usize, input: &[f32]) -> Box<[f32]> {
+        let mut results: Vec<f32> = Vec::with_capacity(input.len());
+
+        let mut sum = 0.0 as f32;
+        for i in 0..window {
+            sum += input[i];
+        }
+        results.push(sum / window as f32);
+
+        let steps = input.len() - window - 1;
+        for i in 0..steps {
+            sum -= input[i];
+            sum += input[i + window];
+            results.push(sum / window as f32);
+        }
+
+        return results.into_boxed_slice();
+    }
 }

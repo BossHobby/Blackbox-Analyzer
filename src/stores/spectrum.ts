@@ -13,7 +13,6 @@ export const useSpectrumStore = defineStore("spectrum", {
       },
     ],
 
-    smoothing: 10,
     expo: 1,
 
     ready: false,

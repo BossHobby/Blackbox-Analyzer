@@ -10,11 +10,6 @@
 
   <div class="sidebar" :class="{ 'is-visible': render.sidebar }">
     <div class="p-2">
-      Smoothing
-      <input type="range" min="1" max="100" v-model="sp.smoothing" step="1" />
-      {{ sp.smoothing }}
-    </div>
-    <div class="p-2">
       displayRangeX
       <input
         type="range"

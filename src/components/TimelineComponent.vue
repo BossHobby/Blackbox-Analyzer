@@ -90,8 +90,8 @@ export default defineComponent({
       ctx.lineTo(this.canvas.width, halfHeight);
       ctx.stroke();
 
-      const seconds = this.bb.duration >= 30 * 1000 ? 2 : 1;
-      const tickWidth = seconds * 1000 * this.tl.pixelsPerMS(this.canvas.width);
+      const tickDuration = this.bb.duration / 25;
+      const tickWidth = tickDuration * this.tl.pixelsPerMS(this.canvas.width);
       const ticks = Math.floor(this.canvas.width / tickWidth);
       for (let i = 1; i < ticks; i++) {
         const offset = i * tickWidth;
@@ -105,7 +105,7 @@ export default defineComponent({
         ctx.textAlign = "center";
         ctx.fillStyle = Color.WHITE_OFF;
         ctx.fillText(
-          this.formatDuration(i * seconds),
+          this.formatDuration(i * (tickDuration / 1000)),
           offset,
           this.canvas.height - 10
         );
@@ -136,7 +136,7 @@ export default defineComponent({
       ctx.textAlign = "center";
       ctx.fillStyle = Color.GREEN;
       ctx.fillText(
-        this.formatDuration((seconds * cursorWidth) / tickWidth),
+        this.formatDuration(((tickDuration / 1000) * cursorWidth) / tickWidth),
         cursorPos,
         halfHeight - halfHeight * 0.6
       );
