@@ -1,11 +1,13 @@
-import { Analysis } from "..";
+import init, { Analysis } from "@cargo/analysis";
 
 export default null;
 
 self.onmessage = async (e) => {
-  await Analysis.init();
+  await init();
+  const wasm = new Analysis();
+
   const sampleFrequency = Number(e.data.sampleFrequency);
   const input = e.data.input as Float32Array;
-  const res = Analysis.wasm.fft(sampleFrequency, input);
+  const res = wasm.fft(sampleFrequency, input);
   self.postMessage(res);
 };
