@@ -1,4 +1,4 @@
-import FFTWorker from "./fft?worker";
+import FFTWorker from "./worker/fft?worker";
 
 interface WorkerWrapper {
   worker: Worker;
@@ -71,4 +71,4 @@ class WorkerManager {
   }
 }
 
-export const runFFTWorker = WorkerManager.wrap(FFTWorker);
+export const fftWorker = WorkerManager.wrap(FFTWorker);

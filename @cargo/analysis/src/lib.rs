@@ -1,0 +1,81 @@
+mod utils;
+
+use realfft::RealFftPlanner;
+use serde::{Deserialize, Serialize};
+use std::cmp;
+use wasm_bindgen::prelude::*;
+
+#[cfg(feature = "wee_alloc")]
+#[global_allocator]
+static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+
+#[derive(Serialize, Deserialize)]
+pub struct FFTResult {
+    pub min: f32,
+    pub max: f32,
+    pub range: f32,
+    pub power: Box<[f32]>,
+}
+
+#[wasm_bindgen]
+pub struct Analysis {
+    planner: RealFftPlanner<f32>,
+}
+
+#[wasm_bindgen]
+impl Analysis {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Analysis {
+        utils::set_panic_hook();
+
+        Analysis {
+            planner: RealFftPlanner::<f32>::new(),
+        }
+    }
+
+    pub fn fft(&mut self, sample_freq: i32, input: &[f32]) -> JsValue {
+        let r2c = self.planner.plan_fft_forward(input.len());
+
+        let mut indata = input.to_vec();
+        let mut spectrum = r2c.make_output_vec();
+        r2c.process(&mut indata, &mut spectrum).unwrap();
+
+        let nc = 2.0 / (sample_freq as f32 * 1000.0 * input.len() as f32);
+        let mut res = FFTResult {
+            min: f32::INFINITY,
+            max: 0.0,
+            range: 0.0,
+            power: vec![0.0; spectrum.len()].into_boxed_slice(),
+        };
+        for i in 0..spectrum.len() {
+            let real = spectrum[i].norm();
+
+            let mut val = f32::powf(f32::abs(real), 2.0) * nc;
+            if val != 0.0 {
+                val = 10.0 * f32::log10(val);
+            }
+
+            res.power[i] = val;
+            res.min = f32::min(res.min, val);
+            res.max = f32::max(res.max, val);
+            res.range = f32::max(res.range, f32::abs(val));
+        }
+
+        return serde_wasm_bindgen::to_value(&res).unwrap();
+    }
+
+    pub fn decimate(&self, width: usize, input: &[f32]) -> Box<[f32]> {
+        let mut res = vec![0.0; width];
+
+        let entries_per_pixel = cmp::max(input.len() / width, 1);
+        for i in 0..width {
+            let mut val = 0.0 as f32;
+            for j in 0..entries_per_pixel {
+                val += input[i * entries_per_pixel + j]
+            }
+            res[i] = val / entries_per_pixel as f32;
+        }
+
+        return res.into_boxed_slice();
+    }
+}

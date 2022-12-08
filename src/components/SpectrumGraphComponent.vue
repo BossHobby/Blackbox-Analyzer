@@ -7,12 +7,12 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 
-import { movingAvg, useBlackboxStore } from "@/stores/blackbox";
+import { useBlackboxStore } from "@/stores/blackbox";
 import { useSpectrumStore } from "@/stores/spectrum";
 import { Color, useRenderStore } from "@/stores/render";
-import { runFFTWorker } from "@/worker";
 
 import CanvasComponent from "@/components/CanvasComponent.vue";
+import { Analysis } from "@/analysis";
 
 export default defineComponent({
   name: "SpectrumGraphComponent",
@@ -47,7 +47,6 @@ export default defineComponent({
       },
 
       loading: false,
-      loadingStart: 0,
       drag: false,
     };
   },
@@ -71,23 +70,30 @@ export default defineComponent({
       const size =
         this.bb.entries.length - (this.bb.entries.length % 2 ? 1 : 0);
 
-      return this.fields.map((field: any) => {
-        return this.bb.entries
-          .map((entry) => {
-            let val = entry[field.name];
-            if (field.index != undefined) {
-              val = val[field.index];
-            }
-            return val;
-          })
-          .slice(0, size);
-      });
+      return this.fields
+        .map((field: any) => {
+          return this.bb.entries
+            .map((entry) => {
+              let val = entry[field.name];
+              if (field.index != undefined) {
+                val = val[field.index];
+              }
+              return val;
+            })
+            .slice(0, size);
+        })
+        .map((array) => Float32Array.from(array));
+    },
+    specturmDataDecimated() {
+      return this.spectrumData.power.map((power) =>
+        Analysis.decimate(this.plotWidth, power)
+      );
     },
     spectrumPath() {
       const height =
         this.spectrumData.min >= 0 ? this.plotHeight : this.halfHeight;
 
-      return this.spectrumData.power.map((power) => {
+      return this.specturmDataDecimated.map((power) => {
         const path = new Path2D();
         const data = power.map((p: number) => p / this.spectrumData.range);
         const tickWidth = this.plotWidth / data.length;
@@ -105,47 +111,19 @@ export default defineComponent({
         return path;
       });
     },
-    movingAvgData() {
-      return this.spectrumData.power.map((input) => {
-        const window = Math.round(input.length / (this.sp.smoothing * 10));
-        return movingAvg(input, window);
-      });
-    },
-    movingAvgPath() {
-      const height =
-        this.spectrumData.min >= 0 ? this.plotHeight : this.halfHeight;
-
-      return this.movingAvgData.map((avg) => {
-        const data = avg.map((d) => d / this.spectrumData.range);
-        const tickWidth = this.plotWidth / data.length;
-
-        const path = new Path2D();
-        path.moveTo(
-          this.paddingLeft,
-          height - height * data[0] * this.sp.displayRangeY
-        );
-        for (let i = 0; i < data.length; i++) {
-          path.lineTo(
-            this.paddingLeft + i * tickWidth * this.sp.displayRangeX,
-            height - height * data[i] * this.sp.displayRangeY
-          );
-        }
-        return path;
-      });
-    },
     hoverValue() {
-      if (!this.movingAvgData || !this.movingAvgData.length) {
+      if (!this.specturmDataDecimated || !this.specturmDataDecimated.length) {
         return [];
       }
 
-      const tickWidth = this.plotWidth / this.movingAvgData[0].length;
+      const tickWidth = this.plotWidth / this.specturmDataDecimated[0].length;
       const hoverIndex = (this.sp.hoverPos - this.paddingLeft) / tickWidth;
       const hoverIndexLower = Math.floor(hoverIndex);
       const hoverWeigthLower = hoverIndex - hoverIndexLower;
       const hoverIndexUpper = Math.ceil(hoverIndex);
       const hoverWeigthUpper = 1 - hoverWeigthLower;
 
-      return this.movingAvgData.map((data) => {
+      return this.specturmDataDecimated.map((data) => {
         const valUpper = data[hoverIndexUpper];
         const valLower = data[hoverIndexLower];
         const val = valUpper * hoverWeigthUpper + valLower * hoverWeigthLower;
@@ -154,8 +132,8 @@ export default defineComponent({
     },
   },
   watch: {
-    async specturmInput(inputs: number[][]) {
-      this.loadingStart = performance.now();
+    async specturmInput(inputs: Float32Array[]) {
+      const loadingStart = performance.now();
       this.loading = true;
 
       const data = {
@@ -166,7 +144,7 @@ export default defineComponent({
       };
 
       const promises = inputs.map((input) =>
-        runFFTWorker({ sampleFrequency: this.sampleFrequency, input })
+        Analysis.fft(this.sampleFrequency, input)
       );
 
       for (const res of await Promise.all(promises)) {
@@ -182,7 +160,8 @@ export default defineComponent({
 
       this.spectrumData = data;
       this.loading = false;
-      console.log(performance.now() - this.loadingStart);
+
+      console.log("specturmInput took", performance.now() - loadingStart, "ms");
     },
   },
   methods: {
@@ -247,15 +226,9 @@ export default defineComponent({
         ctx.fillStyle = Color.GREEN;
         ctx.fillText("loading...", this.plotWidth / 2, this.plotHeight / 2);
       } else {
-        ctx.lineWidth = 0.5;
+        ctx.lineWidth = 1;
         for (const [index, path] of this.spectrumPath.entries()) {
           ctx.strokeStyle = this.render.colors[index];
-          ctx.stroke(path);
-        }
-
-        ctx.lineWidth = 2;
-        for (const [index, path] of this.movingAvgPath.entries()) {
-          ctx.strokeStyle = Color.GREEN;
           ctx.stroke(path);
         }
 

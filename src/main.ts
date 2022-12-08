@@ -7,6 +7,9 @@ import FontAwesomeIcon from "./mixin/icons";
 
 import router from "./router";
 import "./style.scss";
+import { Analysis } from "./analysis";
+
+Analysis.init();
 
 const app = createApp(App);
 
