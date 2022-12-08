@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "rsw watch & vite",
     "build": "rsw build && run-p type-check build-only",
+    "build:gh-pages": "rsw build && env DEPLOYMENT=gh-pages vite build --outDir docs",
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --noEmit",
