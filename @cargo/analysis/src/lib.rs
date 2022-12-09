@@ -111,9 +111,10 @@ impl Analysis {
         };
 
         for i in 0..input.len() {
-            let val = input[i];
-            res.values[i] = f32::powf(f32::abs(val), expo) * f32::signum(val);
+            let mut val = input[i];
+            val = f32::powf(f32::abs(val), expo) * f32::signum(val);
             res.range = f32::max(res.range, f32::abs(val));
+            res.values[i] = val;
         }
 
         res.values = self.moving_avg(window, &res.values);
