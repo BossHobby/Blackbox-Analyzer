@@ -5,7 +5,7 @@
     aria-label="main navigation"
   >
     <div class="navbar-brand">
-      <router-link class="navbar-item py-1" to="/"> BB Analyzer </router-link>
+      <router-link class="navbar-item py-1" to="/"> GUACALYZER </router-link>
 
       <a
         role="button"
