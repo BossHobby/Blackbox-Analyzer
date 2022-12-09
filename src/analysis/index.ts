@@ -17,7 +17,7 @@ export class Analysis {
     return Analysis.wasm.decimate(width, input);
   }
 
-  public static moving_avg(window: number, input: Float32Array) {
-    return Analysis.wasm.moving_avg(window, input);
+  public static transform(expo: number, window: number, input: Float32Array) {
+    return Analysis.wasm.transform(expo, window, input);
   }
 }

@@ -31,6 +31,16 @@ export class BlackboxFieldIdentifier {
   }
 }
 
+export function transformBlackbox(field: BlackboxFieldDef, val: number) {
+  switch (field.unit) {
+    case BlackboxFieldUnit.RADIANS:
+      return (val / field.scale) * (180 / Math.PI);
+
+    default:
+      return val / field.scale;
+  }
+}
+
 export const useBlackboxStore = defineStore("blackbox", {
   state: () => ({
     rate: 0,
@@ -75,17 +85,6 @@ export const useBlackboxStore = defineStore("blackbox", {
     },
   },
   actions: {
-    transform(name: string, val: number) {
-      const field = this.fields[name];
-
-      switch (field.unit) {
-        case BlackboxFieldUnit.RADIANS:
-          return (val / field.scale) * (180 / Math.PI);
-
-        default:
-          return val / field.scale;
-      }
-    },
     async loadBlackbox() {
       const pickerOpts = {
         types: [

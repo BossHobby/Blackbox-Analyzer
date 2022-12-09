@@ -14,7 +14,11 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
-import { BlackboxFieldIdentifier, useBlackboxStore } from "@/stores/blackbox";
+import {
+  BlackboxFieldIdentifier,
+  transformBlackbox,
+  useBlackboxStore,
+} from "@/stores/blackbox";
 import CanvasComponent from "@/components/CanvasComponent.vue";
 import { useTimelineStore } from "@/stores/timeline";
 import { Color, useRenderStore } from "@/stores/render";
@@ -83,24 +87,17 @@ export default defineComponent({
       const fields = {
         range: 0,
         values: this.graphFields.map((field) => {
-          return this.bb.entries[field.id.toString()].slice(0);
+          return this.bb.entries[field.id.toString()]
+            .slice(0)
+            .map((val) => transformBlackbox(field, val));
         }),
       };
 
       for (let i = 0; i < fields.values.length; i++) {
-        const field = this.graphFields[i];
-        for (let j = 0; j < fields.values[i].length; j++) {
-          let val = fields.values[i][j];
-          val = this.bb.transform(field.name, val);
-          val = Math.pow(Math.abs(val), this.tl.expo) * Math.sign(val);
+        const res = Analysis.transform(this.tl.expo, 1, fields.values[i]);
 
-          fields.range = Math.max(fields.range, Math.abs(val));
-          fields.values[i][j] = val;
-        }
-      }
-
-      for (let i = 0; i < fields.values.length; i++) {
-        fields.values[i] = Analysis.moving_avg(1, fields.values[i]);
+        fields.range = Math.max(fields.range, Math.abs(res.range));
+        fields.values[i] = res.values;
       }
 
       return fields;

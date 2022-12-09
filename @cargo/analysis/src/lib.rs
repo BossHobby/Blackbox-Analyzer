@@ -17,6 +17,12 @@ pub struct FFTResult {
     pub power: Box<[f32]>,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct TransformResult {
+    pub range: f32,
+    pub values: Box<[f32]>,
+}
+
 #[wasm_bindgen]
 pub struct Analysis {
     planner: RealFftPlanner<f32>,
@@ -96,5 +102,22 @@ impl Analysis {
         }
 
         return results.into_boxed_slice();
+    }
+
+    pub fn transform(&self, expo: f32, window: usize, input: &[f32]) -> JsValue {
+        let mut res = TransformResult {
+            range: 0.0,
+            values: vec![0.0; input.len()].into_boxed_slice(),
+        };
+
+        for i in 0..input.len() {
+            let val = input[i];
+            res.values[i] = f32::powf(f32::abs(val), expo) * f32::signum(val);
+            res.range = f32::max(res.range, f32::abs(val));
+        }
+
+        res.values = self.moving_avg(window, &res.values);
+
+        return serde_wasm_bindgen::to_value(&res).unwrap();
     }
 }
