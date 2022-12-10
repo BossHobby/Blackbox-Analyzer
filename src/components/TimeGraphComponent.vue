@@ -94,7 +94,8 @@ export default defineComponent({
       };
 
       for (let i = 0; i < fields.values.length; i++) {
-        const res = Analysis.transform(this.tl.expo, 1, fields.values[i]);
+        const field = this.graphFields[i];
+        const res = Analysis.transform(field.expo / 100.0, 8, fields.values[i]);
 
         fields.range = Math.max(fields.range, Math.abs(res.range));
         fields.values[i] = res.values;

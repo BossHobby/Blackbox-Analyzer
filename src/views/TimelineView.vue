@@ -9,12 +9,6 @@
   </div>
 
   <div class="sidebar" :class="{ 'is-visible': render.sidebar }">
-    <div class="p-2">
-      Expo
-      <input type="range" min="0" max="1" v-model.lazy="tl.expo" step="0.01" />
-      {{ tl.expo }}
-    </div>
-
     <button class="button is-primary mt-4" @click="tl.addGraph()">
       <font-awesome-icon icon="fa-solid fa-plus" size="lg" fixed-width />
       Graph
@@ -62,6 +56,16 @@
               </select>
             </div>
           </div>
+          <p class="control">
+            <input
+              class="input"
+              type="number"
+              step="1"
+              min="0"
+              max="100"
+              v-model="tl.graphs[graphIndex].fields[fieldIndex].expo"
+            />
+          </p>
           <div class="control">
             <a
               class="button is-danger"
@@ -184,7 +188,7 @@ export default defineComponent({
   &.is-visible {
     padding-left: 1rem;
     padding-right: 1rem;
-    width: 320px;
+    width: 340px;
 
     & > * {
       opacity: 1;

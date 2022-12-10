@@ -57,7 +57,12 @@ export const useBlackboxStore = defineStore("blackbox", {
       const options = [[]] as any[];
       const fields = Object.values(this.fields);
 
-      for (const field of fields) {
+      for (const f of fields) {
+        const field = {
+          ...f,
+          expo: 100,
+        };
+
         if (!Array.isArray(field?.axis)) {
           options[0].push(field);
           continue;
