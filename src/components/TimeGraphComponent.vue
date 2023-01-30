@@ -72,7 +72,7 @@ export default defineComponent({
       );
     },
     tickWidth() {
-      return (this.canvas.width / this.tl.zoom) * this.entriesPerMS;
+      return this.canvas.width / this.windowSize;
     },
     graphFields() {
       return this.fields.map((field: any) => {
