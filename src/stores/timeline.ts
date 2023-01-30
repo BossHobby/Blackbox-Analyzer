@@ -76,13 +76,13 @@ export const useTimelineStore = defineStore("timeline", {
     setZoom(delta: number) {
       this.zoom = Math.min(
         Math.max(Math.round(delta), ZOOM_MIN),
-        this._duration * 0.1
+        Math.min(this._duration, 30 * 1000)
       );
     },
     modifyZoom(delta: number) {
       this.zoom = Math.min(
         Math.max(Math.round(this.zoom + this.zoom * delta), ZOOM_MIN),
-        this._duration * 0.1
+        Math.min(this._duration, 30 * 1000)
       );
       this.cursor = Math.min(
         Math.max(this.cursor, this.zoom / 2),
