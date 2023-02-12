@@ -21,8 +21,9 @@ import {
 } from "@/stores/blackbox";
 import CanvasComponent from "@/components/CanvasComponent.vue";
 import { useTimelineStore } from "@/stores/timeline";
-import { Color, useRenderStore } from "@/stores/render";
+import { useRenderStore } from "@/stores/render";
 import { Analysis } from "@/analysis";
+import { Color, Render } from "@/analysis/render";
 
 export default defineComponent({
   name: "TimeGraphComponent",
@@ -84,32 +85,27 @@ export default defineComponent({
       });
     },
     graphValues() {
-      const fields = {
-        range: 0,
-        values: this.graphFields.map((field) => {
-          return this.bb.entries[field.id.toString()]
+      const fields = this.graphFields.map((field) => {
+        return {
+          range: 0,
+          values: this.bb.entries[field.id.toString()]
             .slice(0)
-            .map((val) => transformBlackbox(field, val));
-        }),
-      };
+            .map((val) => transformBlackbox(field, val)),
+        };
+      });
 
-      for (let i = 0; i < fields.values.length; i++) {
-        const field = this.graphFields[i];
-        const res = Analysis.transform(field.expo / 100.0, 8, fields.values[i]);
-
-        fields.range = Math.max(fields.range, Math.abs(res.range));
-        fields.values[i] = res.values;
-      }
-
-      return fields;
+      return fields.map((field, i) => {
+        const f = this.graphFields[i];
+        return Analysis.transform(f.expo / 100.0, 1, field.values);
+      });
     },
     graphPaths() {
-      return this.graphValues.values.map((field) => {
+      return this.graphValues.map((field) => {
         const path = new Path2D();
 
-        path.moveTo(field[0], this.halfHeight);
+        path.moveTo(field.values[0], this.halfHeight);
         for (let i = 0; i < this.windowSize; i++) {
-          const val = field[this.windowOffset + i] / this.graphValues.range;
+          const val = field.values[this.windowOffset + i] / field.range;
           path.lineTo(
             i * this.tickWidth,
             val * -1 * this.halfHeight + this.halfHeight
@@ -128,8 +124,8 @@ export default defineComponent({
       let maxLen = 0;
       return this.graphFields
         .map((field, fieldIndex) => {
-          const valUpper = this.graphValues.values[fieldIndex][hoverIndexUpper];
-          const valLower = this.graphValues.values[fieldIndex][hoverIndexLower];
+          const valUpper = this.graphValues[fieldIndex].values[hoverIndexUpper];
+          const valLower = this.graphValues[fieldIndex].values[hoverIndexLower];
           const val = valUpper * hoverWeigthUpper + valLower * hoverWeigthLower;
           const str = val.toFixed(2).toString();
           maxLen = Math.max(maxLen, str.length);
@@ -219,13 +215,6 @@ export default defineComponent({
         ctx.stroke(path);
       }
 
-      const hoverPos = this.tl.windowHoverPos(this.canvas.width);
-      ctx.strokeStyle = Color.GREEN;
-      ctx.beginPath();
-      ctx.moveTo(hoverPos, 0);
-      ctx.lineTo(hoverPos, this.canvas.height);
-      ctx.stroke();
-
       if (this.select) {
         ctx.fillStyle = "hsla(0, 0%, 29%, 0.4)";
         ctx.strokeStyle = Color.GRAY_LIGTHER;
@@ -239,12 +228,22 @@ export default defineComponent({
         ctx.fill();
       }
 
-      ctx.font = "14px Roboto Mono";
-      ctx.textAlign = "right";
+      const hoverPos = this.tl.windowHoverPos(this.canvas.width);
+
+      const lines = [];
       for (const [index, val] of this.hoverValues.entries()) {
-        ctx.fillStyle = this.render.colors[index];
-        ctx.fillText(val, hoverPos - 6, 20 * (index + 1));
+        lines.push({
+          text: val,
+          color: this.render.colors[index],
+        });
       }
+      Render.hoverText(
+        ctx,
+        hoverPos,
+        this.canvas.width,
+        this.canvas.height,
+        lines
+      );
     },
   },
 });

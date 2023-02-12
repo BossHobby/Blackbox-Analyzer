@@ -9,10 +9,11 @@ import { defineComponent } from "vue";
 
 import { BlackboxFieldIdentifier, useBlackboxStore } from "@/stores/blackbox";
 import { useSpectrumStore } from "@/stores/spectrum";
-import { Color, useRenderStore } from "@/stores/render";
+import { useRenderStore } from "@/stores/render";
 
 import CanvasComponent from "@/components/CanvasComponent.vue";
 import { Analysis } from "@/analysis";
+import { Color, Render } from "@/analysis/render";
 
 export default defineComponent({
   name: "SpectrumGraphComponent",
@@ -76,8 +77,8 @@ export default defineComponent({
       });
     },
     specturmInput() {
-      const size =
-        this.bb.entries.time.length - (this.bb.entries.time.length % 2 ? 1 : 0);
+      const inputSize = this.bb.entries.time.length / 2;
+      const size = inputSize - (inputSize % 2 ? 1 : 0);
 
       return this.spectrumFields.map((field) => {
         return this.bb.entries[field.id.toString()].slice(0, size);
@@ -244,34 +245,31 @@ export default defineComponent({
           ctx.stroke(path);
         }
 
-        ctx.font = "14px Roboto Mono";
-        ctx.fillStyle = Color.GREEN;
         const freqPerPixel = this.sampleFrequency / 2 / this.plotWidth;
         const hoverFreq = (
           (this.sp.hoverPos - this.paddingLeft) *
           freqPerPixel
         ).toFixed(2);
 
-        let hoverTextPos = 0;
-        if (this.sp.hoverPos > this.canvas.width / 2) {
-          ctx.textAlign = "right";
-          hoverTextPos = this.sp.hoverPos - 6;
-        } else {
-          ctx.textAlign = "left";
-          hoverTextPos = this.sp.hoverPos + 6;
-        }
-
-        ctx.fillText("Frequency " + hoverFreq + " Hz", hoverTextPos, 20);
+        const lines = [
+          {
+            text: "Frequency " + hoverFreq + " Hz",
+            color: Color.GREEN as string,
+          },
+        ];
         for (const [index, val] of this.hoverValue.entries()) {
-          ctx.fillStyle = this.render.colors[index];
-          ctx.fillText(val + " dB", hoverTextPos, index * 20 + 40);
+          lines.push({
+            text: val + " dB",
+            color: this.render.colors[index],
+          });
         }
-
-        ctx.strokeStyle = Color.GREEN;
-        ctx.beginPath();
-        ctx.moveTo(this.sp.hoverPos, 0);
-        ctx.lineTo(this.sp.hoverPos, this.canvas.height);
-        ctx.stroke();
+        Render.hoverText(
+          ctx,
+          this.sp.hoverPos,
+          this.canvas.width,
+          this.canvas.height,
+          lines
+        );
       }
     },
   },

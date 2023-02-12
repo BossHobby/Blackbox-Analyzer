@@ -15,8 +15,8 @@
 import { defineComponent } from "vue";
 import { useBlackboxStore } from "@/stores/blackbox";
 import CanvasComponent from "@/components/CanvasComponent.vue";
-import { Color } from "@/stores/render";
 import { useTimelineStore } from "@/stores/timeline";
+import { Color } from "@/analysis/render";
 
 export default defineComponent({
   name: "TimelineComponent",
