@@ -56,7 +56,7 @@ export default defineComponent({
       return this.$refs.canvas as HTMLCanvasElement;
     },
     sampleFrequency() {
-      return this.bb.rate * this.bb.looptime;
+      return 1000000 / (this.bb.rate * this.bb.looptime);
     },
     plotWidth() {
       return this.canvas.width - this.paddingLeft;
