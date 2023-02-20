@@ -2,9 +2,9 @@
   <h1 class="title" v-if="!tl.ready">No file loaded</h1>
   <div style="margin-top: 60px; margin-bottom: 120px">
     <TimeGraphComponent
-      v-for="(graph, index) in tl.graphs"
+      v-for="(fields, index) in tl.graphFields"
       :key="'graph-' + index"
-      :fields="graph.fields"
+      :fields="fields"
     />
   </div>
 
@@ -29,13 +29,13 @@
 
       <div
         v-for="(field, fieldIndex) in graph.fields"
-        :key="'field-' + field.name"
+        :key="'field-' + field.id.toString()"
         class="mb-2"
       >
         <div class="field has-addons">
           <div class="control">
             <div class="select">
-              <select v-model="tl.graphs[graphIndex].fields[fieldIndex]">
+              <select v-model="tl.graphs[graphIndex].fields[fieldIndex].id">
                 <template
                   v-for="(opt, index) in bb.fieldOptions"
                   :key="'field-optgtp-' + index"
@@ -44,11 +44,11 @@
                     <option
                       v-for="o in opt.filter((o: any) => !o.group)"
                       :key="'field-opt-' + o.name"
-                      :value="o"
+                      :value="o.id"
                     >
                       {{ o.title }}
                     </option>
-                    <option v-if="opt.length == 0" :value="opt">
+                    <option v-if="opt.length == 0" :value="opt.id">
                       {{ opt.title }}
                     </option>
                   </optgroup>
@@ -85,7 +85,7 @@
         <div class="control">
           <div class="select">
             <select v-model="tl.fieldTemplate[graphIndex]">
-              <option :value="null">Select...</option>
+              <option :value="undefined">Select...</option>
               <template
                 v-for="(opt, index) in bb.fieldOptions"
                 :key="'field-create-optgtp-' + index"
@@ -110,7 +110,7 @@
           <button
             class="button is-primary"
             @click="tl.addField(graphIndex)"
-            :disabled="tl.fieldTemplate[graphIndex] == null"
+            :disabled="tl.fieldTemplate[graphIndex] == undefined"
           >
             <font-awesome-icon icon="fa-solid fa-plus" size="lg" fixed-width />
           </button>
@@ -188,7 +188,7 @@ export default defineComponent({
   &.is-visible {
     padding-left: 1rem;
     padding-right: 1rem;
-    width: 340px;
+    width: 350px;
 
     & > * {
       opacity: 1;

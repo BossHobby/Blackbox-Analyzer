@@ -15,7 +15,7 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import {
-  BlackboxFieldIdentifier,
+  blackboxFieldIDToString,
   transformBlackbox,
   useBlackboxStore,
 } from "@/stores/blackbox";
@@ -78,7 +78,6 @@ export default defineComponent({
     graphFields() {
       return this.fields.map((field: any) => {
         return {
-          id: new BlackboxFieldIdentifier(field.name, field.index),
           ...this.bb.fields[field.name],
           ...field,
         };
@@ -86,7 +85,7 @@ export default defineComponent({
     },
     graphValues() {
       let fields = this.graphFields.map((field) => {
-        const raw = this.bb.entries[field.id.toString()]
+        const raw = this.bb.entries[blackboxFieldIDToString(field.id)]
           .slice(0)
           .map((val) => transformBlackbox(field, val));
 

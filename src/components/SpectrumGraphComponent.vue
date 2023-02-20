@@ -7,7 +7,7 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 
-import { BlackboxFieldIdentifier, useBlackboxStore } from "@/stores/blackbox";
+import { useBlackboxStore, blackboxFieldIDToString } from "@/stores/blackbox";
 import { useSpectrumStore } from "@/stores/spectrum";
 import { useRenderStore } from "@/stores/render";
 
@@ -70,7 +70,6 @@ export default defineComponent({
     spectrumFields() {
       return this.fields.map((field: any) => {
         return {
-          id: new BlackboxFieldIdentifier(field.name, field.index),
           ...this.bb.fields[field.name],
           ...field,
         };
@@ -81,7 +80,10 @@ export default defineComponent({
       const size = inputSize - (inputSize % 2 ? 1 : 0);
 
       return this.spectrumFields.map((field) => {
-        return this.bb.entries[field.id.toString()].slice(0, size);
+        return this.bb.entries[blackboxFieldIDToString(field.id)].slice(
+          0,
+          size
+        );
       });
     },
     specturmDataDecimated() {

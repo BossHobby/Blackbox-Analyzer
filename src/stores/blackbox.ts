@@ -16,19 +16,16 @@ export interface BlackboxFieldDef {
   unit: BlackboxFieldUnit;
 }
 
-export class BlackboxFieldIdentifier {
-  constructor(public name: string, public index?: number) {}
+export interface BlackboxFieldID {
+  name: string;
+  index?: number;
+}
 
-  public toString() {
-    if (this.index != undefined) {
-      return this.name + "_" + this.index;
-    }
-    return this.name;
+export function blackboxFieldIDToString(id: BlackboxFieldID) {
+  if (id.index != undefined) {
+    return id.name + "_" + id.index;
   }
-
-  public static toString(name: string, index?: number) {
-    return new BlackboxFieldIdentifier(name, index).toString();
-  }
+  return id.name;
 }
 
 export function transformBlackbox(field: BlackboxFieldDef, val: number) {
@@ -58,20 +55,19 @@ export const useBlackboxStore = defineStore("blackbox", {
       const options = [[]] as any[];
       const fields = Object.values(this.fields);
 
-      for (const f of fields) {
-        const field = {
-          ...f,
-          expo: 100,
-        };
-
+      for (const field of fields) {
         if (!Array.isArray(field?.axis)) {
-          options[0].push(field);
+          options[0].push({
+            ...field,
+            id: { name: field.name } as BlackboxFieldID,
+          });
           continue;
         }
 
         const opt: any[] = [
           {
             ...field,
+            id: { name: field.name } as BlackboxFieldID,
             title: field.title + " All",
             groupTitle: field.title,
             group: field?.axis.length,
@@ -79,6 +75,7 @@ export const useBlackboxStore = defineStore("blackbox", {
           ...field.axis.map((name, index) => {
             return {
               ...field,
+              id: { name: field.name, index } as BlackboxFieldID,
               title: field.title + " " + name,
               index,
             };
@@ -123,11 +120,11 @@ export const useBlackboxStore = defineStore("blackbox", {
 
       const entries = {} as { [index: string]: Float32Array };
       for (const [fieldIndex, field] of Object.values(this.fields).entries()) {
-        let fields = [new BlackboxFieldIdentifier(field.name)];
+        let fields = [{ name: field.name } as BlackboxFieldID];
         if (field.axis) {
-          fields = field.axis.map(
-            (_, index) => new BlackboxFieldIdentifier(field.name, index)
-          );
+          fields = field.axis.map((_, index) => {
+            return { name: field.name, index } as BlackboxFieldID;
+          });
         }
         for (const id of fields) {
           const values = blackbox.entries.map((entry: any) => {
@@ -138,7 +135,7 @@ export const useBlackboxStore = defineStore("blackbox", {
             return val;
           });
 
-          entries[id.toString()] = Float32Array.from(values);
+          entries[blackboxFieldIDToString(id)] = Float32Array.from(values);
         }
       }
       this.entries = entries;

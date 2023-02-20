@@ -2,9 +2,9 @@
   <h1 class="title" v-if="!sp.ready">No file loaded</h1>
   <div v-else>
     <SpectrumGraphComponent
-      v-for="(graph, index) of sp.graphs"
+      v-for="(fields, index) in sp.graphFields"
       :key="'spectrum-' + index"
-      :fields="graph.fields"
+      :fields="fields"
     />
   </div>
 
@@ -52,13 +52,13 @@
 
       <div
         v-for="(field, fieldIndex) in graph.fields"
-        :key="'field-' + field.name"
+        :key="'field-' + field.id.toString()"
         class="mb-2"
       >
         <div class="field has-addons">
           <div class="control">
             <div class="select">
-              <select v-model="sp.graphs[graphIndex].fields[fieldIndex]">
+              <select v-model="sp.graphs[graphIndex].fields[fieldIndex].id">
                 <template
                   v-for="(opt, index) in bb.fieldOptions"
                   :key="'field-optgtp-' + index"
@@ -67,11 +67,11 @@
                     <option
                       v-for="o in opt.filter((o: any) => !o.group)"
                       :key="'field-opt-' + o.name"
-                      :value="o"
+                      :value="o.id"
                     >
                       {{ o.title }}
                     </option>
-                    <option v-if="opt.length == 0" :value="opt">
+                    <option v-if="opt.length == 0" :value="opt.id">
                       {{ opt.title }}
                     </option>
                   </optgroup>
@@ -98,7 +98,7 @@
         <div class="control">
           <div class="select">
             <select v-model="sp.fieldTemplate[graphIndex]">
-              <option :value="null">Select...</option>
+              <option :value="undefined">Select...</option>
               <template
                 v-for="(opt, index) in bb.fieldOptions"
                 :key="'field-create-optgtp-' + index"
@@ -123,7 +123,7 @@
           <button
             class="button is-primary"
             @click="sp.addField(graphIndex)"
-            :disabled="sp.fieldTemplate[graphIndex] == null"
+            :disabled="sp.fieldTemplate[graphIndex] == undefined"
           >
             <font-awesome-icon icon="fa-solid fa-plus" size="lg" fixed-width />
           </button>
@@ -156,6 +156,14 @@ export default defineComponent({
   },
   data() {
     return {};
+  },
+  watch: {
+    "sp.graphs": {
+      handler(newValue) {
+        localStorage.setItem("spectrum-graphs", JSON.stringify(newValue));
+      },
+      deep: true,
+    },
   },
 });
 </script>

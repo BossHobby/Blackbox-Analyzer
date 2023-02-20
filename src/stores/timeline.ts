@@ -1,4 +1,9 @@
 import { defineStore } from "pinia";
+import {
+  blackboxFieldIDToString,
+  useBlackboxStore,
+  type BlackboxFieldID,
+} from "./blackbox";
 
 const ZOOM_MIN = 100;
 
@@ -8,10 +13,13 @@ export const useTimelineStore = defineStore("timeline", {
     hover: 0.5, // in % of zoom/window
     zoom: 1000, // in ms
 
-    fieldTemplate: [null],
+    fieldTemplate: [] as any[],
     graphs: [
       {
-        fields: [] as any[],
+        fields: [] as {
+          id: BlackboxFieldID;
+          expo: number;
+        }[],
       },
     ],
 
@@ -44,6 +52,21 @@ export const useTimelineStore = defineStore("timeline", {
       return (width: number) => {
         return state.hover * state.zoom * this.windowPixelsPerMS(width);
       };
+    },
+    graphFields(state) {
+      const bb = useBlackboxStore();
+      const options = bb.fieldOptions.flat();
+      return state.graphs.map((g) => {
+        return g.fields.map((f) => {
+          return {
+            ...f,
+            ...options.find(
+              (o) =>
+                blackboxFieldIDToString(o.id) == blackboxFieldIDToString(f.id)
+            ),
+          };
+        });
+      });
     },
   },
   actions: {
@@ -102,26 +125,25 @@ export const useTimelineStore = defineStore("timeline", {
 
       if (tmpl.group) {
         for (let i = 0; i < tmpl.group; i++) {
-          const entry = {
-            ...tmpl,
-            title: tmpl.groupTitle + " " + tmpl.axis[i],
-            index: i,
-          };
-          delete entry.groupTitle;
-          delete entry.group;
-          this.graphs[graphIndex].fields.push(entry);
+          this.graphs[graphIndex].fields.push({
+            id: { name: tmpl.name, index: i } as BlackboxFieldID,
+            expo: 100,
+          });
         }
       } else {
-        this.graphs[graphIndex].fields.push(tmpl);
+        this.graphs[graphIndex].fields.push({
+          id: { name: tmpl.name } as BlackboxFieldID,
+          expo: 100,
+        });
       }
 
-      this.fieldTemplate[graphIndex] = null;
+      this.fieldTemplate[graphIndex] = undefined;
     },
     addGraph() {
       this.graphs.push({
         fields: [] as any[],
       });
-      this.fieldTemplate.push(null);
+      this.fieldTemplate.push(undefined);
     },
   },
 });
