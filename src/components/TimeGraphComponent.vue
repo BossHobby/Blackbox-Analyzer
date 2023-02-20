@@ -85,18 +85,27 @@ export default defineComponent({
       });
     },
     graphValues() {
-      const fields = this.graphFields.map((field) => {
+      let fields = this.graphFields.map((field) => {
+        const raw = this.bb.entries[field.id.toString()]
+          .slice(0)
+          .map((val) => transformBlackbox(field, val));
+
         return {
-          range: 0,
-          values: this.bb.entries[field.id.toString()]
-            .slice(0)
-            .map((val) => transformBlackbox(field, val)),
+          ...field,
+          ...Analysis.transform(field.expo / 100.0, 1, raw),
         };
       });
 
-      return fields.map((field, i) => {
-        const f = this.graphFields[i];
-        return Analysis.transform(f.expo / 100.0, 1, field.values);
+      const range: any = {};
+      for (const f of fields) {
+        range[f.unit + f.expo] = Math.max(range[f.unit + f.expo] || 0, f.range);
+      }
+
+      return fields.map((f) => {
+        return {
+          ...f,
+          range: range[f.unit + f.expo],
+        };
       });
     },
     graphPaths() {

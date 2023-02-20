@@ -9,7 +9,7 @@ export const useRenderStore = defineStore("render", {
     drawFunctions: {} as { [index: string]: DrawFuntion },
     animationeFrameId: 0,
 
-    colors: ["#FFBE0B", "#FF006E", "#8338Ec", "#3A86FF", "#FB5607"],
+    colors: ["#FFBE0B", "#FF006E", "#975bea", "#3A86FF", "#FB5607"],
   }),
 
   actions: {
