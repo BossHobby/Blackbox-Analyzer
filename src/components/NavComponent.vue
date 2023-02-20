@@ -35,7 +35,11 @@
       </div>
     </div>
 
-    <div class="navbar-end"></div>
+    <div class="navbar-end">
+      <div class="navbar-item">
+        {{ bb.filename }}
+      </div>
+    </div>
     <div class="navbar-end">
       <div class="navbar-item">
         <div class="buttons">

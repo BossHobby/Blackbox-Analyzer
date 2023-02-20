@@ -46,6 +46,7 @@ export const useBlackboxStore = defineStore("blackbox", {
     rate: 0,
     looptime: 0,
     duration: 0,
+    filename: "",
     fields: {} as { [index: string]: BlackboxFieldDef },
     entries: {} as { [index: string]: Float32Array },
   }),
@@ -109,6 +110,7 @@ export const useBlackboxStore = defineStore("blackbox", {
         await fileHandle.getFile().then((f) => f.text())
       );
 
+      this.filename = fileHandle.name;
       this.rate = blackbox.blackbox_rate;
       this.looptime = blackbox.looptime;
       this.fields = blackbox.fields.reduce(
