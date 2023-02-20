@@ -70,8 +70,12 @@ impl Analysis {
         return serde_wasm_bindgen::to_value(&res).unwrap();
     }
 
-    pub fn decimate(&self, width: usize, input: &[f32]) -> Box<[f32]> {
+    pub fn decimate(&self, mut width: usize, input: &[f32]) -> Box<[f32]> {
         let mut res = vec![0.0; width];
+
+        if input.len() < width {
+            width = input.len();
+        }
 
         let entries_per_pixel = cmp::max(input.len() / width, 1);
         for i in 0..width {
