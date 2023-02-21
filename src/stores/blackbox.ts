@@ -127,13 +127,26 @@ export const useBlackboxStore = defineStore("blackbox", {
           });
         }
         for (const id of fields) {
-          const values = blackbox.entries.map((entry: any) => {
-            let val = entry[fieldIndex];
-            if (id.index != undefined) {
-              val = val[id.index];
-            }
-            return val;
-          });
+          const values = blackbox.entries
+            .filter((entry: any[], index: number) => {
+              if (entry.length != blackbox.fields.length) {
+                console.warn(
+                  "invalid entry at",
+                  index,
+                  "of",
+                  blackbox.entries.length
+                );
+                return false;
+              }
+              return true;
+            })
+            .map((entry: any[]) => {
+              let val = entry[fieldIndex];
+              if (id.index != undefined) {
+                val = val[id.index];
+              }
+              return val;
+            });
 
           entries[blackboxFieldIDToString(id)] = Float32Array.from(values);
         }
