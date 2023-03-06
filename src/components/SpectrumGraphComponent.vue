@@ -76,12 +76,12 @@ export default defineComponent({
       });
     },
     specturmInput() {
-      const inputSize = this.bb.entries.time.length / 2;
+      const inputSize = this.bb.entries.time.length - this.bb.start;
       const size = inputSize - (inputSize % 2 ? 1 : 0);
 
       return this.spectrumFields.map((field) => {
         return this.bb.entries[blackboxFieldIDToString(field.id)].slice(
-          0,
+          this.bb.start,
           size
         );
       });

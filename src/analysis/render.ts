@@ -9,6 +9,7 @@ export enum Color {
   GRAY_DARKEST = "hsl(0, 0%, 3%)",
   WHITE = "rgb(255, 255, 255)",
   WHITE_OFF = "rgb(233, 235, 252)",
+  RED = "hsl(359deg 92% 45%)",
 }
 
 export class Render {

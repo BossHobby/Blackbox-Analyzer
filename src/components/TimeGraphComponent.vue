@@ -108,16 +108,15 @@ export default defineComponent({
       });
     },
     graphPaths() {
+      const { halfHeight, windowSize, windowOffset, tickWidth } = this;
       return this.graphValues.map((field) => {
-        const path = new Path2D();
+        const mul = 1 / field.range;
 
-        path.moveTo(field.values[0], this.halfHeight);
-        for (let i = 0; i < this.windowSize; i++) {
-          const val = field.values[this.windowOffset + i] / field.range;
-          path.lineTo(
-            i * this.tickWidth,
-            val * -1 * this.halfHeight + this.halfHeight
-          );
+        const path = new Path2D();
+        path.moveTo(field.values[0], halfHeight);
+        for (let i = 0; i < windowSize; i++) {
+          const val = field.values[windowOffset + i] * mul;
+          path.lineTo(i * tickWidth, val * -1 * halfHeight + halfHeight);
         }
         return path;
       });
@@ -150,13 +149,16 @@ export default defineComponent({
       e.preventDefault();
       e.stopPropagation();
 
-      if (e.button == 2) {
-        this.drag = true;
-      }
-      if (e.button == 0) {
-        this.select = true;
-        this.selectStart = e.offsetX;
-        this.selectEnd = e.offsetX;
+      switch (e.button) {
+        case 0:
+          if (e.ctrlKey) {
+            this.select = true;
+            this.selectStart = e.offsetX;
+            this.selectEnd = e.offsetX;
+          } else {
+            this.drag = true;
+          }
+          break;
       }
     },
     mousemove(e: MouseEvent) {
@@ -173,24 +175,31 @@ export default defineComponent({
     mouseup(e: MouseEvent) {
       const pixelsPer = this.tl.windowPixelsPerMS(this.canvas.width);
       this.tl.moveCursor(e.movementX / pixelsPer);
-      if (e.button == 2) {
-        this.drag = false;
-      }
-      if (e.button == 0) {
-        if (this.select) {
-          this.selectEnd = e.offsetX;
+      switch (e.button) {
+        case 0:
+          if (e.ctrlKey) {
+            if (this.select) {
+              this.selectEnd = e.offsetX;
 
-          const start = Math.min(this.selectStart, this.selectEnd);
-          const end = Math.max(this.selectStart, this.selectEnd);
+              const start = Math.min(this.selectStart, this.selectEnd);
+              const end = Math.max(this.selectStart, this.selectEnd);
 
-          const delta = end - start;
-          const pos = (start + delta / 2) / pixelsPer;
-          const cursor = this.tl.cursor - this.tl.zoom / 2 + pos;
+              const delta = end - start;
+              const pos = (start + delta / 2) / pixelsPer;
+              const cursor = this.tl.cursor - this.tl.zoom / 2 + pos;
 
-          this.tl.setZoom(delta / pixelsPer);
-          this.tl.setCursor(cursor);
-        }
-        this.select = false;
+              this.tl.setZoom(delta / pixelsPer);
+              this.tl.setCursor(cursor);
+            }
+            this.select = false;
+          } else {
+            this.drag = false;
+          }
+          break;
+
+        case 2:
+          this.bb.start = this.windowOffset + this.tl.hover * this.windowSize;
+          break;
       }
     },
     wheel(e: WheelEvent) {
@@ -234,6 +243,17 @@ export default defineComponent({
         ctx.lineTo(this.selectStart, this.canvas.height);
         ctx.stroke();
         ctx.fill();
+      }
+
+      if (this.bb.start >= this.windowOffset) {
+        const pos =
+          (this.bb.start - this.windowOffset) *
+          this.tl.windowPixelsPerMS(this.canvas.width);
+        ctx.strokeStyle = Color.RED;
+        ctx.beginPath();
+        ctx.moveTo(pos, 0);
+        ctx.lineTo(pos, this.canvas.height);
+        ctx.stroke();
       }
 
       const hoverPos = this.tl.windowHoverPos(this.canvas.width);
