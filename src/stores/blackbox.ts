@@ -38,6 +38,31 @@ export function transformBlackbox(field: BlackboxFieldDef, val: number) {
   }
 }
 
+function processEntries(entries: any[], fields: BlackboxFieldDef[]) {
+  const rawEntries = entries.filter((entry: any[], index: number) => {
+    if (entry.length != fields.length) {
+      console.warn("invalid entry at", index, "of", entries.length);
+      return false;
+    }
+    return true;
+  });
+
+  const startLoop = rawEntries[0][0];
+  const endLoop = rawEntries[rawEntries.length - 1][0];
+
+  const fullEntries = [rawEntries[0]];
+  for (let i = startLoop + 1, rawEntryIndex = 1; i < endLoop; i++) {
+    const rawEntry = rawEntries[rawEntryIndex];
+    if (rawEntry[0] == i) {
+      fullEntries.push(rawEntry);
+      rawEntryIndex++;
+    } else {
+      fullEntries.push(fullEntries[fullEntries.length - 1]);
+    }
+  }
+  return fullEntries;
+}
+
 export const useBlackboxStore = defineStore("blackbox", {
   state: () => ({
     rate: 0,
@@ -123,6 +148,7 @@ export const useBlackboxStore = defineStore("blackbox", {
       );
 
       const entries = {} as { [index: string]: Float32Array };
+      const rawEntries = processEntries(blackbox.entries, blackbox.fields);
       for (const [fieldIndex, field] of Object.values(this.fields).entries()) {
         let fields = [{ name: field.name } as BlackboxFieldID];
         if (field.axis) {
@@ -131,26 +157,13 @@ export const useBlackboxStore = defineStore("blackbox", {
           });
         }
         for (const id of fields) {
-          const values = blackbox.entries
-            .filter((entry: any[], index: number) => {
-              if (entry.length != blackbox.fields.length) {
-                console.warn(
-                  "invalid entry at",
-                  index,
-                  "of",
-                  blackbox.entries.length
-                );
-                return false;
-              }
-              return true;
-            })
-            .map((entry: any[]) => {
-              let val = entry[fieldIndex];
-              if (id.index != undefined) {
-                val = val[id.index];
-              }
-              return val;
-            });
+          const values = rawEntries.map((entry: any[]) => {
+            let val = entry[fieldIndex];
+            if (id.index != undefined) {
+              val = val[id.index];
+            }
+            return val;
+          });
 
           entries[blackboxFieldIDToString(id)] = Float32Array.from(values);
         }
