@@ -198,7 +198,11 @@ export default defineComponent({
           break;
 
         case 2:
-          this.bb.start = this.windowOffset + this.tl.hover * this.windowSize;
+          if (e.ctrlKey) {
+            this.bb.end = this.windowOffset + this.tl.hover * this.windowSize;
+          } else {
+            this.bb.start = this.windowOffset + this.tl.hover * this.windowSize;
+          }
           break;
       }
     },
@@ -248,6 +252,17 @@ export default defineComponent({
       if (this.bb.start >= this.windowOffset) {
         const pos =
           (this.bb.start - this.windowOffset) *
+          this.tl.windowPixelsPerMS(this.canvas.width);
+        ctx.strokeStyle = Color.RED;
+        ctx.beginPath();
+        ctx.moveTo(pos, 0);
+        ctx.lineTo(pos, this.canvas.height);
+        ctx.stroke();
+      }
+
+      if (this.bb.end >= this.windowOffset) {
+        const pos =
+          (this.bb.end - this.windowOffset) *
           this.tl.windowPixelsPerMS(this.canvas.width);
         ctx.strokeStyle = Color.RED;
         ctx.beginPath();

@@ -76,7 +76,8 @@ export default defineComponent({
       });
     },
     specturmInput() {
-      const inputSize = this.bb.entries.time.length - this.bb.start;
+      const end = this.bb.end > 0 ? this.bb.end : this.bb.entries.time.length;
+      const inputSize = end - this.bb.start;
       const size = inputSize - (inputSize % 2 ? 1 : 0);
 
       return this.spectrumFields.map((field) => {
