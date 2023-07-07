@@ -2,7 +2,7 @@ name: build
 on:
   push:
     branches:
-      - 'master'
+      - "master"
 
 permissions:
   contents: write
@@ -28,8 +28,7 @@ jobs:
 
       - name: install cargo packages
         run: |
-          cargo install rsw
-          cargo install wasm-pack --features curl/static-curl
+          cargo install wasm-pack rsw
 
       - name: cache node_modules
         uses: actions/cache@v3
