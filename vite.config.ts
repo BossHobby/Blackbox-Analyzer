@@ -7,10 +7,7 @@ import vueJsx from "@vitejs/plugin-vue-jsx";
 import topLevelAwait from "vite-plugin-top-level-await";
 import { ViteRsw } from "vite-plugin-rsw";
 
-let base = "/";
-if (process.env.DEPLOYMENT === "gh-pages") {
-  base = "/Blackbox-Analyzer/";
-}
+const base = "/";
 
 // https://vitejs.dev/config/
 export default defineConfig({
