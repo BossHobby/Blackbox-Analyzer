@@ -64,16 +64,8 @@ export default defineComponent({
     entriesPerMS() {
       return this.bb.entriesPerMS;
     },
-    windowSize() {
-      return Math.floor(this.tl.zoom * this.entriesPerMS);
-    },
-    windowOffset() {
-      return Math.floor(
-        this.tl.cursor * this.entriesPerMS - this.windowSize / 2
-      );
-    },
     tickWidth() {
-      return this.canvas.width / this.windowSize;
+      return this.canvas.width / this.tl.windowSize;
     },
     graphFields() {
       return this.fields.map((field: any) => {
@@ -84,7 +76,7 @@ export default defineComponent({
       });
     },
     graphValues() {
-      let fields = this.graphFields.map((field) => {
+      const fields = this.graphFields.map((field) => {
         const raw = this.bb.entries[blackboxFieldIDToString(field.id)]
           .slice(0)
           .map((val) => transformBlackbox(field, val));
@@ -108,21 +100,26 @@ export default defineComponent({
       });
     },
     graphPaths() {
-      const { halfHeight, windowSize, windowOffset, tickWidth } = this;
+      const { windowSize, windowOffset } = this.tl;
+      const { halfHeight, tickWidth } = this;
       return this.graphValues.map((field) => {
         const mul = 1 / field.range;
+        const values = field.values.slice(
+          windowOffset,
+          windowOffset + windowSize
+        );
 
         const path = new Path2D();
-        path.moveTo(field.values[0], halfHeight);
-        for (let i = 0; i < windowSize; i++) {
-          const val = field.values[windowOffset + i] * mul;
+        path.moveTo(values[0], halfHeight);
+        for (let i = 0; i < values.length; i++) {
+          const val = values[i] * mul;
           path.lineTo(i * tickWidth, val * -1 * halfHeight + halfHeight);
         }
         return path;
       });
     },
     hoverValues() {
-      const hoverIndex = this.windowOffset + this.tl.hover * this.windowSize;
+      const hoverIndex = this.tl.windowHoverIndex;
       const hoverIndexLower = Math.floor(hoverIndex);
       const hoverWeigthLower = hoverIndex - hoverIndexLower;
       const hoverIndexUpper = Math.ceil(hoverIndex);
@@ -199,9 +196,9 @@ export default defineComponent({
 
         case 2:
           if (e.ctrlKey) {
-            this.bb.end = this.windowOffset + this.tl.hover * this.windowSize;
+            this.bb.end = this.tl.windowHoverIndex;
           } else {
-            this.bb.start = this.windowOffset + this.tl.hover * this.windowSize;
+            this.bb.start = this.tl.windowHoverIndex;
           }
           break;
       }
@@ -249,9 +246,9 @@ export default defineComponent({
         ctx.fill();
       }
 
-      if (this.bb.start >= this.windowOffset) {
+      if (this.bb.start >= this.tl.windowOffset) {
         const pos =
-          (this.bb.start - this.windowOffset) *
+          (this.bb.start - this.tl.windowOffset) *
           this.tl.windowPixelsPerMS(this.canvas.width);
         ctx.strokeStyle = Color.RED;
         ctx.beginPath();
@@ -260,9 +257,9 @@ export default defineComponent({
         ctx.stroke();
       }
 
-      if (this.bb.end >= this.windowOffset) {
+      if (this.bb.end >= this.tl.windowOffset) {
         const pos =
-          (this.bb.end - this.windowOffset) *
+          (this.bb.end - this.tl.windowOffset) *
           this.tl.windowPixelsPerMS(this.canvas.width);
         ctx.strokeStyle = Color.RED;
         ctx.beginPath();

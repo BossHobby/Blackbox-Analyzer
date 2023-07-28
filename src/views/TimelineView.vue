@@ -1,6 +1,7 @@
 <template>
   <h1 class="title" v-if="!tl.ready">No file loaded</h1>
   <div style="margin-top: 60px; margin-bottom: 120px">
+    <StickOverlay />
     <TimeGraphComponent
       v-for="(fields, index) in tl.graphFields"
       :key="'graph-' + index"
@@ -133,12 +134,14 @@ import { useBlackboxStore } from "@/stores/blackbox";
 
 import TimeGraphComponent from "@/components/TimeGraphComponent.vue";
 import TimelineComponent from "@/components/TimelineComponent.vue";
+import StickOverlay from "@/components/StickOverlay.vue";
 
 export default defineComponent({
   name: "TimelineView",
   components: {
     TimeGraphComponent,
     TimelineComponent,
+    StickOverlay,
   },
   setup() {
     return {

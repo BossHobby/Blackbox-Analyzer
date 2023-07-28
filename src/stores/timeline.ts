@@ -43,6 +43,17 @@ export const useTimelineStore = defineStore("timeline", {
         return state.cursor * this.pixelsPerMS(width);
       };
     },
+    windowSize(): number {
+      const bb = useBlackboxStore();
+      return Math.floor(this.zoom * bb.entriesPerMS);
+    },
+    windowOffset(): number {
+      const bb = useBlackboxStore();
+      return Math.floor(this.cursor * bb.entriesPerMS - this.windowSize / 2);
+    },
+    windowHoverIndex(): number {
+      return this.windowOffset + this.hover * this.windowSize;
+    },
     windowPixelsPerMS(state) {
       return (width: number) => {
         return width / state.zoom;
