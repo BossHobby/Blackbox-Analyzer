@@ -38,6 +38,19 @@ export function transformBlackbox(field: BlackboxFieldDef, val: number) {
   }
 }
 
+export function unitBlackbox(field: BlackboxFieldDef) {
+  switch (field.unit) {
+    case BlackboxFieldUnit.RADIANS:
+      return "deg";
+
+    case BlackboxFieldUnit.US:
+      return "us";
+
+    default:
+      return "";
+  }
+}
+
 function processEntries(entries: any[], fields: BlackboxFieldDef[]) {
   const rawEntries = entries.filter((entry: any[], index: number) => {
     if (entry.length != fields.length) {
@@ -82,13 +95,13 @@ export const useBlackboxStore = defineStore("blackbox", {
       const options = [[]] as any[];
       const fields = Object.values(this.fields);
 
-      for (const field of fields) {
+      const generateOption = (field: BlackboxFieldDef) => {
         if (!Array.isArray(field?.axis)) {
           options[0].push({
             ...field,
             id: { name: field.name } as BlackboxFieldID,
           });
-          continue;
+          return;
         }
 
         const opt: any[] = [
@@ -109,7 +122,18 @@ export const useBlackboxStore = defineStore("blackbox", {
           }),
         ];
         options.push(opt);
+      };
+
+      for (const field of fields) {
+        generateOption(field);
       }
+      generateOption({
+        name: "pid_sum",
+        scale: 3000,
+        title: "Pid Sum",
+        unit: BlackboxFieldUnit.NONE,
+        axis: ["Roll", "Pitch", "Yaw"],
+      });
 
       return options;
     },
@@ -168,6 +192,16 @@ export const useBlackboxStore = defineStore("blackbox", {
           entries[blackboxFieldIDToString(id)] = Float32Array.from(values);
         }
       }
+      for (let axis = 0; axis < 3; axis++) {
+        entries[`pid_sum_${axis}`] = entries.time.map((_, index) => {
+          return (
+            entries[`pid_pterm_${axis}`][index] +
+            entries[`pid_iterm_${axis}`][index] +
+            entries[`pid_dterm_${axis}`][index]
+          );
+        });
+      }
+
       this.entries = entries;
 
       this.duration =

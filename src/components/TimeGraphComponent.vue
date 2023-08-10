@@ -17,6 +17,7 @@ import { defineComponent } from "vue";
 import {
   blackboxFieldIDToString,
   transformBlackbox,
+  unitBlackbox,
   useBlackboxStore,
 } from "@/stores/blackbox";
 import CanvasComponent from "@/components/CanvasComponent.vue";
@@ -136,8 +137,9 @@ export default defineComponent({
           return { field, str };
         })
         .map(({ field, str }) => {
+          const unit = unitBlackbox(field);
           while (str.length < maxLen) str = " " + str;
-          return field.title + " " + str;
+          return field.title + " " + str + " " + unit;
         });
     },
   },
