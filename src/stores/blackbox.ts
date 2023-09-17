@@ -230,5 +230,21 @@ export const useBlackboxStore = defineStore("blackbox", {
       const spectrum = useSpectrumStore();
       spectrum.initSpectrum();
     },
+    cutEntries(end: number) {
+      for (const key of Object.keys(this.entries)) {
+        this.entries[key] = this.entries[key].slice(0, end);
+      }
+
+      this.duration =
+        (this.entries.time[this.entries.time.length - 1] -
+          this.entries.time[0]) /
+        1000;
+
+      const timeline = useTimelineStore();
+      timeline.initTimeline(this.entries.time.length, this.duration);
+
+      const spectrum = useSpectrumStore();
+      spectrum.initSpectrum();
+    },
   },
 });

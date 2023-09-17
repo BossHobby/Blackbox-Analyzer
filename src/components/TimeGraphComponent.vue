@@ -1,4 +1,42 @@
 <template>
+  <div
+    class="box context-menu p-1"
+    tabindex="0"
+    v-show="contextMenu.show"
+    :style="{ top: contextMenu.top + 'px', left: contextMenu.left + 'px' }"
+  >
+    <aside class="menu">
+      <ul class="menu-list">
+        <li>
+          <a
+            @click="
+              bb.start = tl.windowHoverIndex;
+              contextMenu.show = false;
+            "
+            >Start Here</a
+          >
+        </li>
+        <li>
+          <a
+            @click="
+              bb.end = tl.windowHoverIndex;
+              contextMenu.show = false;
+            "
+            >End Here</a
+          >
+        </li>
+        <li>
+          <a
+            @click="
+              bb.cutEntries(tl.windowHoverIndex);
+              contextMenu.show = false;
+            "
+            >Cut Here</a
+          >
+        </li>
+      </ul>
+    </aside>
+  </div>
   <div class="timeline-graph">
     <CanvasComponent
       ref="canvas"
@@ -6,8 +44,8 @@
       @mousedown="mousedown"
       @mousemove="mousemove"
       @mouseup="mouseup"
-      @contextmenu.capture.prevent
       @wheel="wheel"
+      @contextmenu.capture.prevent="context"
     />
   </div>
 </template>
@@ -53,6 +91,11 @@ export default defineComponent({
       select: false,
       selectStart: 0,
       selectEnd: 0,
+      contextMenu: {
+        show: false,
+        top: 0,
+        left: 0,
+      },
     };
   },
   computed: {
@@ -148,6 +191,8 @@ export default defineComponent({
       e.preventDefault();
       e.stopPropagation();
 
+      this.contextMenu.show = false;
+
       switch (e.button) {
         case 0:
           if (e.ctrlKey) {
@@ -195,14 +240,6 @@ export default defineComponent({
             this.drag = false;
           }
           break;
-
-        case 2:
-          if (e.ctrlKey) {
-            this.bb.end = this.tl.windowHoverIndex;
-          } else {
-            this.bb.start = this.tl.windowHoverIndex;
-          }
-          break;
       }
     },
     wheel(e: WheelEvent) {
@@ -213,6 +250,11 @@ export default defineComponent({
       this.tl.moveCursor(
         e.deltaX / this.tl.windowPixelsPerMS(this.canvas.width)
       );
+    },
+    context(e: PointerEvent) {
+      this.contextMenu.show = true;
+      this.contextMenu.top = e.y;
+      this.contextMenu.left = e.x;
     },
     draw(ctx: CanvasRenderingContext2D) {
       if (!this.tl.ready) {
@@ -294,5 +336,8 @@ export default defineComponent({
 <style lang="scss" scoped>
 .timeline-graph {
   height: 300px;
+}
+.context-menu {
+  position: fixed;
 }
 </style>
