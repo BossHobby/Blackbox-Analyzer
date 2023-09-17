@@ -135,6 +135,14 @@ export const useBlackboxStore = defineStore("blackbox", {
         axis: ["Roll", "Pitch", "Yaw"],
       });
 
+      generateOption({
+        name: "setpoint_error",
+        scale: 3000,
+        title: "Setpoint Error",
+        unit: BlackboxFieldUnit.RADIANS,
+        axis: ["Roll", "Pitch", "Yaw"],
+      });
+
       return options;
     },
   },
@@ -198,6 +206,13 @@ export const useBlackboxStore = defineStore("blackbox", {
             entries[`pid_pterm_${axis}`][index] +
             entries[`pid_iterm_${axis}`][index] +
             entries[`pid_dterm_${axis}`][index]
+          );
+        });
+
+        entries[`setpoint_error_${axis}`] = entries.time.map((_, index) => {
+          return (
+            entries[`setpoint_${axis}`][index] -
+            entries[`gyro_filter_${axis}`][index]
           );
         });
       }
