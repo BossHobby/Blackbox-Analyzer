@@ -183,6 +183,7 @@ export default defineComponent({
 
   width: 0;
   transition: all 400ms ease-in-out;
+  overflow-y: auto;
 
   & > * {
     opacity: 0;
