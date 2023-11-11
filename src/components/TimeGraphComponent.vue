@@ -31,7 +31,16 @@
               bb.cutEntries(tl.windowHoverIndex);
               contextMenu.show = false;
             "
-            >Cut Here</a
+            >Stat Cut Here</a
+          >
+        </li>
+        <li>
+          <a
+            @click="
+              bb.cutEntries(0, tl.windowHoverIndex);
+              contextMenu.show = false;
+            "
+            >End Cut Here</a
           >
         </li>
       </ul>

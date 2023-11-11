@@ -52,12 +52,13 @@ export function unitBlackbox(field: BlackboxFieldDef) {
 }
 
 function processEntries(entries: any[], fields: BlackboxFieldDef[]) {
-  const rawEntries = entries.filter((entry: any[], index: number) => {
+  let lastEntry: any[];
+  const rawEntries = entries.map((entry: any[]) => {
     if (entry.length != fields.length) {
-      console.warn("invalid entry at", index, "of", entries.length);
-      return false;
+      //console.warn("invalid entry at", index, "of", entries.length, entry);
+      return lastEntry;
     }
-    return true;
+    return (lastEntry = entry);
   });
 
   const startLoop = rawEntries[0][0];
@@ -230,9 +231,9 @@ export const useBlackboxStore = defineStore("blackbox", {
       const spectrum = useSpectrumStore();
       spectrum.initSpectrum();
     },
-    cutEntries(end: number) {
+    cutEntries(start = 0, end = -1) {
       for (const key of Object.keys(this.entries)) {
-        this.entries[key] = this.entries[key].slice(0, end);
+        this.entries[key] = this.entries[key].slice(start, end);
       }
 
       this.duration =
