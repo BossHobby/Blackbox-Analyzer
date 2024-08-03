@@ -1,5 +1,5 @@
 <template>
-  <div ref="canvasContainer" class="canvas-container" @resize="canvasResize">
+  <div ref="canvasContainer" class="canvas-container">
     <canvas ref="canvas" />
   </div>
 </template>
@@ -17,7 +17,8 @@ export default defineComponent({
   },
   data() {
     return {
-      ctx: null as unknown as CanvasRenderingContext2D,
+      ctx: undefined as CanvasRenderingContext2D | undefined,
+      ro: undefined as ResizeObserver | undefined,
       renderId: 0,
       width: 0,
       height: 0,
@@ -43,11 +44,14 @@ export default defineComponent({
   mounted() {
     this.ctx = this.canvas.getContext("2d")!;
     this.canvasResize();
+    this.ro = new ResizeObserver(this.canvasResize)
+    this.ro.observe(this.canvasContainer)
     this.renderId = this.render.subscribeDraw((time) =>
       this.$emit("draw", this.ctx, time)
     );
   },
   unmounted() {
+    this.ro?.unobserve(this.canvasContainer)
     this.render.unsubscribeDraw(this.renderId);
   },
 });
