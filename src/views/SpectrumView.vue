@@ -66,7 +66,7 @@
                   <optgroup>
                     <option
                       v-for="o in opt.filter((o: any) => !o.group)"
-                      :key="'field-opt-' + o.name"
+                      :key="'field-opt-' + o.id.name + '-' + o.id.index"
                       :value="o.id"
                     >
                       {{ o.title }}
@@ -106,7 +106,7 @@
                 <optgroup>
                   <option
                     v-for="o in opt"
-                    :key="'field-create-opt-' + o.name"
+                    :key="'field-create-opt-' + o.id.name + '-' + o.id.index"
                     :value="o"
                   >
                     {{ o.title }}
