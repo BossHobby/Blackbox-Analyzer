@@ -2,6 +2,7 @@ mod utils;
 
 use realfft::RealFftPlanner;
 use serde::{Deserialize, Serialize};
+use core::f32;
 use std::cmp;
 use wasm_bindgen::prelude::*;
 
@@ -28,6 +29,18 @@ pub struct Analysis {
     planner: RealFftPlanner<f32>,
 }
 
+pub fn hann_window(samples: &[f32]) -> Vec<f32> {
+    let mut windowed_samples = Vec::with_capacity(samples.len());
+    let samples_len_f32 = samples.len() as f32;
+    for (i, sample) in samples.iter().enumerate() {
+        let two_pi_i = 2.0 * f32::consts::PI * i as f32;
+        let idontknowthename = f32::cos(two_pi_i / samples_len_f32);
+        let multiplier = 0.5 * (1.0 - idontknowthename);
+        windowed_samples.push(multiplier * sample)
+    }
+    windowed_samples
+}
+
 #[wasm_bindgen]
 impl Analysis {
     #[wasm_bindgen(constructor)]
@@ -40,13 +53,15 @@ impl Analysis {
     }
 
     pub fn fft(&mut self, sample_freq: i32, input: &[f32]) -> JsValue {
-        let r2c = self.planner.plan_fft_forward(input.len());
+        let window = hann_window(input);
 
-        let mut indata = input.to_vec();
+        let r2c = self.planner.plan_fft_forward(window.len());
+
+        let mut indata = window.to_vec();
         let mut spectrum = r2c.make_output_vec();
         r2c.process(&mut indata, &mut spectrum).unwrap();
 
-        let nc = 2.0 / (sample_freq as f32 * 1000.0 * input.len() as f32);
+        let nc = 2.0 / (sample_freq as f32 * 1000.0 * window.len() as f32);
         let mut res = FFTResult {
             min: f32::INFINITY,
             max: 0.0,
