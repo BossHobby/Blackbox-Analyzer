@@ -9,29 +9,6 @@
   </div>
 
   <div class="sidebar" :class="{ 'is-visible': render.sidebar }">
-    <div class="p-2">
-      displayRangeX
-      <input
-        type="range"
-        min="1"
-        max="100"
-        v-model="sp.displayRangeX"
-        step="0.001"
-      />
-      {{ sp.displayRangeX }}
-    </div>
-    <div class="p-2">
-      displayRangeY
-      <input
-        type="range"
-        min="1"
-        max="1000"
-        v-model="sp.displayRangeY"
-        step="0.001"
-      />
-      {{ sp.displayRangeY }}
-    </div>
-
     <button class="button is-primary mt-4" @click="sp.addGraph()">
       <font-awesome-icon icon="fa-solid fa-plus" size="lg" fixed-width />
       Graph

@@ -103,12 +103,12 @@ export default defineComponent({
 
         path.moveTo(
           this.paddingLeft,
-          height - height * data[0] * this.sp.displayRangeY
+          height - height * data[0]
         );
         for (let i = 0; i < data.length; i++) {
           path.lineTo(
-            this.paddingLeft + i * tickWidth * this.sp.displayRangeX,
-            height - height * data[i] * this.sp.displayRangeY
+            this.paddingLeft + i * tickWidth,
+            height - height * data[i]
           );
         }
         return path;
