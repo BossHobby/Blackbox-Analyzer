@@ -27,6 +27,10 @@ export default defineComponent({
         return [];
       },
     },
+    graphIndex: {
+      type: Number,
+      default: 0,
+    },
   },
   setup() {
     return {
@@ -44,7 +48,7 @@ export default defineComponent({
         min: Infinity,
         max: 0,
         range: 40,
-        power: [] as any[],
+        power: [] as Float32Array[],
       },
 
       loading: false,
@@ -218,14 +222,24 @@ export default defineComponent({
       this.sp.hoverPos = Math.max(e.offsetX, this.paddingLeft);
     },
     async updateSpectrumInput(inputs: Float32Array[]) {
-      const loadingStart = performance.now();
       this.loading = true;
+
+      if (!inputs.length) {
+        this.spectrumData = {
+          min: Infinity,
+          max: -Infinity,
+          range: 0,
+          power: [],
+        };
+        this.loading = false;
+        return;
+      }
 
       const data = {
         min: Infinity,
         max: -Infinity,
         range: 0,
-        power: [] as any[],
+        power: [] as Float32Array[],
       };
 
       try {
@@ -252,8 +266,6 @@ export default defineComponent({
 
       this.spectrumData = data;
       this.loading = false;
-
-      console.log("spectrumInput took", performance.now() - loadingStart, "ms");
     },
     draw(ctx: CanvasRenderingContext2D) {
       if (!this.sp.ready) {

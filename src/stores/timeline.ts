@@ -47,10 +47,9 @@ function defaultTimelineGraphs(isRover: boolean): TimelineGraph[] {
       {
         title: "Rover Assist",
         fields: [
-          field("rover_debug_1"),
           field("rover_debug_2"),
-          field("rover_debug_4"),
-          field("rover_debug_5"),
+          field("rover_debug_3"),
+          field("rover_debug_6"),
         ],
       },
       {
@@ -84,6 +83,29 @@ function defaultTimelineGraphs(isRover: boolean): TimelineGraph[] {
       ],
     },
   ];
+}
+
+function sanitizeTimelineGraphs(graphs: TimelineGraph[], isRover: boolean) {
+  const bb = useBlackboxStore();
+  const validFields = new Set(
+    bb.fieldOptions
+      .flat()
+      .filter((option: any) => !option.group)
+      .map((option: any) => blackboxFieldIDToString(option.id))
+  );
+
+  const sanitized = graphs
+    .map((graph) => {
+      return {
+        ...graph,
+        fields: graph.fields.filter((graphField) =>
+          validFields.has(blackboxFieldIDToString(graphField.id))
+        ),
+      };
+    })
+    .filter((graph) => graph.fields.length);
+
+  return sanitized.length ? sanitized : defaultTimelineGraphs(isRover);
 }
 
 export const useTimelineStore = defineStore("timeline", {
@@ -169,7 +191,7 @@ export const useTimelineStore = defineStore("timeline", {
       try {
         const str = localStorage.getItem("timeline-graphs");
         if (str) {
-          this.graphs = JSON.parse(str);
+          this.graphs = sanitizeTimelineGraphs(JSON.parse(str), isRover);
         } else {
           this.graphs = defaultTimelineGraphs(isRover);
         }
@@ -254,6 +276,10 @@ export const useTimelineStore = defineStore("timeline", {
         fields: [] as any[],
       });
       this.fieldTemplate.push(undefined);
+    },
+    removeGraph(graphIndex: number) {
+      this.graphs.splice(graphIndex, 1);
+      this.fieldTemplate.splice(graphIndex, 1);
     },
     applyDefaultGraphs(isRover = false) {
       this.graphs = defaultTimelineGraphs(isRover);

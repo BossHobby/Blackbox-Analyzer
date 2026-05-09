@@ -29,7 +29,7 @@ function defaultSpectrumGraphs(isRover: boolean): SpectrumGraph[] {
       },
       {
         title: "Throttle Assist",
-        fields: [field("rover_debug_1"), field("rover_debug_2")],
+        fields: [field("rover_debug_6")],
       },
     ];
   }
@@ -54,11 +54,48 @@ function defaultSpectrumGraphs(isRover: boolean): SpectrumGraph[] {
   ];
 }
 
+function sanitizeSpectrumGraphs(graphs: SpectrumGraph[], isRover: boolean) {
+  const bb = useBlackboxStore();
+  const validFields = new Set(
+    bb.fieldOptions
+      .flat()
+      .filter((option: any) => !option.group)
+      .map((option: any) => blackboxFieldIDToString(option.id))
+  );
+
+  const sanitized = graphs
+    .map((graph) => {
+      return {
+        ...graph,
+        fields: graph.fields.filter((graphField) =>
+          validFields.has(blackboxFieldIDToString(graphField.id))
+        ),
+      };
+    })
+    .filter((graph) => graph.fields.length);
+
+  return sanitized.length ? sanitized : defaultSpectrumGraphs(isRover);
+}
+
+function defaultHeatmapField(graphs: SpectrumGraph[]): BlackboxFieldID {
+  const bb = useBlackboxStore();
+  if (bb.entries.gyro_raw_0) {
+    return { name: "gyro_raw", index: 0 };
+  }
+  if (bb.entries.gyro_filter_0) {
+    return { name: "gyro_filter", index: 0 };
+  }
+  return graphs[0]?.fields[0]?.id || { name: "time" };
+}
+
 export const useSpectrumStore = defineStore("spectrum", {
   state: () => ({
     hoverPos: 0,
     displayRangeX: 1,
     displayRangeY: 1,
+    heatmapField: undefined as BlackboxFieldID | undefined,
+    heatmapMaxFrequency: 300,
+    heatmapBinCount: 20,
 
     fieldTemplate: [] as any[],
     graphs: [
@@ -75,7 +112,7 @@ export const useSpectrumStore = defineStore("spectrum", {
     ready: false,
   }),
   getters: {
-    graphFields(state) {
+    graphFields(state): any[][] {
       const bb = useBlackboxStore();
       const options = bb.fieldOptions.flat();
       return state.graphs.map((g) => {
@@ -90,6 +127,15 @@ export const useSpectrumStore = defineStore("spectrum", {
         });
       });
     },
+    heatmapFieldOption(state): any | undefined {
+      const bb = useBlackboxStore();
+      const options = bb.fieldOptions.flat().filter((option: any) => !option.group);
+      const id = state.heatmapField || defaultHeatmapField(state.graphs);
+      return options.find(
+        (option: any) =>
+          blackboxFieldIDToString(option.id) == blackboxFieldIDToString(id)
+      );
+    },
   },
   actions: {
     initSpectrum(isRover = false) {
@@ -98,7 +144,7 @@ export const useSpectrumStore = defineStore("spectrum", {
       try {
         const str = localStorage.getItem("spectrum-graphs");
         if (str) {
-          this.graphs = JSON.parse(str);
+          this.graphs = sanitizeSpectrumGraphs(JSON.parse(str), isRover);
         } else {
           this.graphs = defaultSpectrumGraphs(isRover);
         }
@@ -142,9 +188,19 @@ export const useSpectrumStore = defineStore("spectrum", {
       });
       this.fieldTemplate.push(null);
     },
+    removeGraph(graphIndex: number) {
+      this.graphs.splice(graphIndex, 1);
+      this.fieldTemplate.splice(graphIndex, 1);
+    },
     applyDefaultGraphs(isRover = false) {
       this.graphs = defaultSpectrumGraphs(isRover);
       this.fieldTemplate = [];
+    },
+    setHeatmapMaxFrequency(value: number) {
+      this.heatmapMaxFrequency = Math.min(Math.max(Math.round(value), 20), 1000);
+    },
+    setHeatmapBinCount(value: number) {
+      this.heatmapBinCount = Math.min(Math.max(Math.round(value), 5), 50);
     },
   },
 });

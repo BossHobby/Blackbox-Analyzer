@@ -13,9 +13,11 @@
       <a
         role="button"
         class="navbar-burger"
+        :class="{ 'is-active': menuOpen }"
         aria-label="menu"
-        aria-expanded="false"
-        data-target="mainMavbar"
+        :aria-expanded="menuOpen"
+        data-target="mainNavbar"
+        @click="menuOpen = !menuOpen"
       >
         <span aria-hidden="true"></span>
         <span aria-hidden="true"></span>
@@ -23,47 +25,51 @@
       </a>
     </div>
 
-    <div id="mainMavbar" class="navbar-menu">
+    <div id="mainNavbar" class="navbar-menu" :class="{ 'is-active': menuOpen }">
       <div class="navbar-start">
-        <router-link active-class="is-active" class="navbar-item" to="/">
+        <router-link
+          active-class="is-active"
+          class="navbar-item"
+          to="/"
+          @click="menuOpen = false"
+        >
           Timeline
         </router-link>
         <router-link
           active-class="is-active"
           class="navbar-item"
           to="/spectrum"
+          @click="menuOpen = false"
         >
           Spectrum
         </router-link>
       </div>
-    </div>
 
-    <div class="navbar-end">
-      <div class="navbar-item">
-        <span
-          v-if="bb.loadState == LoadState.ERROR"
-          class="has-text-danger-light"
-        >
-          {{ bb.loadError }}
-        </span>
-        <span v-else-if="bb.loadState == LoadState.LOADING">Loading...</span>
-        <span v-else-if="bb.isLoaded">
-          {{ bb.filename }} · {{ formatDuration(bb.duration) }}
-        </span>
-        <span v-else class="has-text-grey-lighter">No file loaded</span>
-      </div>
-    </div>
-    <div class="navbar-end">
-      <div class="navbar-item">
-        <div class="buttons">
-          <spinner-btn class="button is-primary" @click="bb.loadBlackbox()">
-            {{ bb.loadState == LoadState.LOADING ? "Loading..." : "Load File" }}
-          </spinner-btn>
+      <div class="navbar-end">
+        <div class="navbar-item">
+          <span
+            v-if="bb.loadState == LoadState.ERROR"
+            class="has-text-danger-light"
+          >
+            {{ bb.loadError }}
+          </span>
+          <span v-else-if="bb.loadState == LoadState.LOADING">Loading...</span>
+          <span v-else-if="bb.isLoaded">
+            {{ bb.filename }} · {{ formatDuration(bb.duration) }}
+          </span>
+          <span v-else class="has-text-grey-lighter">No file loaded</span>
         </div>
+        <div class="navbar-item">
+          <div class="buttons">
+            <spinner-btn class="button is-primary" @click="loadBlackbox()">
+              {{ bb.loadState == LoadState.LOADING ? "Loading..." : "Load File" }}
+            </spinner-btn>
+          </div>
+        </div>
+        <a class="navbar-item" @click="toggleSidebar()">
+          <font-awesome-icon icon="fa-solid fa-bars" size="lg" fixed-width />
+        </a>
       </div>
-      <a class="navbar-item" @click="render.toggleSidebar()">
-        <font-awesome-icon icon="fa-solid fa-bars" size="lg" fixed-width />
-      </a>
     </div>
   </nav>
 </template>
@@ -83,6 +89,21 @@ export default defineComponent({
       LoadState: BlackboxLoadState,
       render: useRenderStore(),
     };
+  },
+  data() {
+    return {
+      menuOpen: false,
+    };
+  },
+  methods: {
+    loadBlackbox() {
+      this.menuOpen = false;
+      this.bb.loadBlackbox();
+    },
+    toggleSidebar() {
+      this.menuOpen = false;
+      this.render.toggleSidebar();
+    },
   },
 });
 </script>

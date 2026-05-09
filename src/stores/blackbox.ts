@@ -36,12 +36,15 @@ interface PickedBlackboxFile {
 const AXIS_NAMES = ["Roll", "Pitch", "Yaw"];
 const ROVER_DEBUG_FIELDS = [
   "Mode",
-  "Throttle Assist Target",
-  "Throttle Assist Filtered",
-  "Throttle Assist Clamp",
   "Steering Clamp",
-  "Throttle Assist Active",
+  "Steering Scale",
+  "Steering Throttle",
+  "Decel Active",
+  "Accel Pitch",
+  "Throttle Assist",
 ];
+const ROVER_DEBUG_SCALES = [1, 1, 100, 100, 1, 100, 100];
+const ROVER_DEBUG_FLAG = 0x1 << 1;
 
 export function blackboxFieldIDToString(id: BlackboxFieldID) {
   if (id.index != undefined) {
@@ -195,6 +198,7 @@ export const useBlackboxStore = defineStore("blackbox", {
     filename: "",
     loadState: BlackboxLoadState.EMPTY,
     loadError: "",
+    profile: undefined as any,
     start: 0,
     end: -1,
     fields: {} as { [index: string]: BlackboxFieldDef },
@@ -219,7 +223,41 @@ export const useBlackboxStore = defineStore("blackbox", {
     entryCount(state) {
       return state.entries.time?.length || 0;
     },
+    activeEnd(state) {
+      const length = state.entries.time?.length || 0;
+      return state.end > 0 ? Math.min(state.end, length) : length;
+    },
+    hasSelection(state) {
+      const length = state.entries.time?.length || 0;
+      const end = state.end > 0 ? Math.min(state.end, length) : length;
+      return length > 0 && (state.start > 0 || end < length);
+    },
+    selectedEntryCount(): number {
+      return Math.max(this.activeEnd - this.start, 0);
+    },
+    selectedDuration(state): number {
+      const time = state.entries.time;
+      if (!time?.length || this.selectedEntryCount <= 1) {
+        return 0;
+      }
+
+      const start = Math.min(Math.max(state.start, 0), time.length - 1);
+      const end = Math.min(Math.max(this.activeEnd - 1, start), time.length - 1);
+      return (time[end] - time[start]) / 1000;
+    },
+    selectionStartIndex(state): number {
+      const length = state.entries.time?.length || 0;
+      return Math.min(Math.max(state.start, 0), length);
+    },
+    selectionEndIndex(): number {
+      return this.activeEnd;
+    },
     isRoverLog(state) {
+      const debugFlags = state.profile?.blackbox?.debug_flags;
+      if (debugFlags != undefined) {
+        return (Number(debugFlags) & ROVER_DEBUG_FLAG) == ROVER_DEBUG_FLAG;
+      }
+
       const mode = state.entries.debug_0;
       if (!mode?.length) {
         return false;
@@ -301,14 +339,13 @@ export const useBlackboxStore = defineStore("blackbox", {
       }
 
       if (this.isRoverLog) {
-        const debugScale = this.fields.debug?.scale || 1;
         for (const [index, title] of ROVER_DEBUG_FIELDS.entries()) {
           if (!this.entries[`rover_debug_${index}`]) {
             continue;
           }
           generateOption({
             name: `rover_debug_${index}`,
-            scale: debugScale,
+            scale: ROVER_DEBUG_SCALES[index] || 1,
             title,
             unit: BlackboxFieldUnit.NONE,
           });
@@ -360,6 +397,7 @@ export const useBlackboxStore = defineStore("blackbox", {
       }
 
       this.filename = pickedFile.name;
+      this.profile = blackbox.profile;
       this.rate = blackbox.blackbox_rate;
       this.looptime = blackbox.looptime;
       this.start = 0;
@@ -474,6 +512,7 @@ export const useBlackboxStore = defineStore("blackbox", {
       this.looptime = 0;
       this.duration = 0;
       this.filename = "";
+      this.profile = undefined;
       this.start = 0;
       this.end = -1;
       this.fields = {};

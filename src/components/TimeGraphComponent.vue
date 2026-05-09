@@ -63,6 +63,7 @@
 import { defineComponent } from "vue";
 import {
   blackboxFieldIDToString,
+  formatDuration,
   transformBlackbox,
   unitBlackbox,
   useBlackboxStore,
@@ -72,6 +73,13 @@ import { useTimelineStore } from "@/stores/timeline";
 import { useRenderStore } from "@/stores/render";
 import { Analysis } from "@/analysis";
 import { Color, Render } from "@/analysis/render";
+
+const ROVER_MODE_LABELS = ["Manual", "Rate Assist", "Rate Throttle"];
+const ROVER_MODE_COLORS = [
+  "hsla(0, 0%, 100%, 0.03)",
+  "hsla(48, 100%, 67%, 0.12)",
+  "hsla(171, 100%, 41%, 0.12)",
+];
 
 export default defineComponent({
   name: "TimeGraphComponent",
@@ -182,6 +190,72 @@ export default defineComponent({
         }
         return path;
       });
+    },
+    roverModeBands() {
+      if (!this.bb.isRoverLog || !this.tickWidth) {
+        return [];
+      }
+
+      const modeEntry = this.bb.entries.rover_debug_0;
+      if (!modeEntry?.length) {
+        return [];
+      }
+
+      const start = Math.max(Math.floor(this.tl.windowOffset), 0);
+      const end = Math.min(
+        Math.ceil(this.tl.windowOffset + this.tl.windowSize),
+        modeEntry.length
+      );
+      if (end <= start) {
+        return [];
+      }
+
+      const bands = [] as {
+        mode: number;
+        label: string;
+        x: number;
+        width: number;
+        color: string;
+        transition: boolean;
+      }[];
+      let mode = Math.round(modeEntry[start]);
+      let bandStart = start;
+      const pushBand = (nextIndex: number, transition: boolean) => {
+        const x = (bandStart - this.tl.windowOffset) * this.tickWidth;
+        const width = Math.max((nextIndex - bandStart) * this.tickWidth, 1);
+        bands.push({
+          mode,
+          label: ROVER_MODE_LABELS[mode] || `Mode ${mode}`,
+          x,
+          width,
+          color: ROVER_MODE_COLORS[mode] || ROVER_MODE_COLORS[0],
+          transition,
+        });
+      };
+
+      for (let index = start + 1; index < end; index++) {
+        const nextMode = Math.round(modeEntry[index]);
+        if (nextMode == mode) {
+          continue;
+        }
+        pushBand(index, index > start + 1);
+        mode = nextMode;
+        bandStart = index;
+      }
+      pushBand(end, false);
+      return bands;
+    },
+    hoverTimeLabel() {
+      const time = this.bb.entries.time;
+      if (!time?.length) {
+        return "Time 0.00 s";
+      }
+
+      const index = Math.min(
+        Math.max(Math.round(this.tl.windowHoverIndex), 0),
+        time.length - 1
+      );
+      return `Time ${formatDuration((time[index] - time[0]) / 1000)}`;
     },
     hoverValues() {
       const hoverIndex = this.tl.windowHoverIndex;
@@ -296,6 +370,28 @@ export default defineComponent({
 
       ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
+      if (this.roverModeBands.length) {
+        ctx.font = "12px Roboto Mono";
+        ctx.textAlign = "left";
+        for (const band of this.roverModeBands) {
+          ctx.fillStyle = band.color;
+          ctx.fillRect(band.x, 0, band.width, this.canvas.height);
+
+          if (band.transition) {
+            ctx.strokeStyle = Color.GRAY_LIGTHER;
+            ctx.beginPath();
+            ctx.moveTo(band.x, 0);
+            ctx.lineTo(band.x, this.canvas.height);
+            ctx.stroke();
+          }
+
+          if (band.width > 80) {
+            ctx.fillStyle = Color.GRAY_LIGTHER;
+            ctx.fillText(band.label, band.x + 6, 16);
+          }
+        }
+      }
+
       ctx.strokeStyle = Color.GRAY_LIGTH;
       ctx.beginPath();
       const divs = 6;
@@ -321,6 +417,18 @@ export default defineComponent({
         ctx.lineTo(this.selectStart, this.canvas.height);
         ctx.stroke();
         ctx.fill();
+
+        const selectionWidth = Math.abs(this.selectEnd - this.selectStart);
+        const selectionDuration =
+          selectionWidth / this.tl.windowPixelsPerMS(this.canvas.width);
+        ctx.font = "14px Roboto Mono";
+        ctx.textAlign = "center";
+        ctx.fillStyle = Color.GREEN;
+        ctx.fillText(
+          formatDuration(selectionDuration),
+          (this.selectStart + this.selectEnd) / 2,
+          22
+        );
       }
 
       if (this.bb.start >= this.tl.windowOffset) {
@@ -343,7 +451,9 @@ export default defineComponent({
 
       const hoverPos = this.tl.windowHoverPos(this.canvas.width);
 
-      const lines = [];
+      const lines = [
+        { text: this.hoverTimeLabel, color: Color.GREEN as string },
+      ];
       for (const [index, val] of this.hoverValues.entries()) {
         lines.push({
           text: val,

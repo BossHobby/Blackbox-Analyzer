@@ -6,15 +6,25 @@
       <span class="tag">{{ bb.entryCount }} samples</span>
       <span class="tag">{{ formatDuration(bb.duration) }}</span>
       <span class="tag">{{ bb.sampleFrequency.toFixed(0) }} Hz</span>
+      <span class="tag">Window {{ formatDuration(tl.zoom) }}</span>
+      <span v-if="bb.hasSelection" class="tag is-info">
+        Selected {{ bb.selectedEntryCount }} samples ·
+        {{ formatDuration(bb.selectedDuration) }}
+      </span>
       <span v-if="bb.isRoverLog" class="tag is-warning">Rover presets</span>
     </div>
     <div style="margin-top: 60px; margin-bottom: 120px">
       <StickOverlay />
       <TimeGraphComponent
         v-for="(fields, index) in tl.graphFields"
+        v-show="fields.length"
         :key="'graph-' + index"
         :fields="fields"
       />
+      <div v-if="!hasVisibleGraphs" class="notification is-warning mx-4">
+        No valid timeline fields are selected. Add fields in the sidebar or apply
+        the default preset.
+      </div>
     </div>
 
     <div class="sidebar" :class="{ 'is-visible': render.sidebar }">
@@ -35,16 +45,22 @@
         class="mt-4"
       >
         <h4 class="subtitle is-4 mb-2">
-          {{ graph.title || `Graph ${graphIndex + 1}` }}
+          Graph {{ graphIndex + 1 }}
           <button
             class="delete mt-1"
-            @click="tl.graphs.splice(graphIndex, 1)"
+            @click="tl.removeGraph(graphIndex)"
           ></button>
         </h4>
+        <input
+          class="input is-small mb-3"
+          type="text"
+          placeholder="Graph title"
+          v-model="tl.graphs[graphIndex].title"
+        />
 
         <div
           v-for="(field, fieldIndex) in graph.fields"
-          :key="'field-' + field.id.toString()"
+          :key="'field-' + fieldIdToString(field.id)"
           class="mb-2"
         >
           <div class="field has-addons">
@@ -55,10 +71,10 @@
                     v-for="(opt, index) in bb.fieldOptions"
                     :key="'field-optgtp-' + index"
                   >
-                    <optgroup>
+                    <optgroup :label="opt[0]?.groupTitle || 'Fields'">
                       <option
                         v-for="o in opt.filter((o: any) => !o.group)"
-                        :key="'field-opt-' + o.name"
+                        :key="'field-opt-' + fieldIdToString(o.id)"
                         :value="o.id"
                       >
                         {{ o.title }}
@@ -101,16 +117,16 @@
             <div class="select">
               <select v-model="tl.fieldTemplate[graphIndex]">
                 <option :value="undefined">Select...</option>
-                <template
-                  v-for="(opt, index) in bb.fieldOptions"
-                  :key="'field-create-optgtp-' + index"
-                >
-                  <optgroup>
-                    <option
-                      v-for="o in opt"
-                      :key="'field-create-opt-' + o.name"
-                      :value="o"
-                    >
+                  <template
+                    v-for="(opt, index) in bb.fieldOptions"
+                    :key="'field-create-optgtp-' + index"
+                  >
+                    <optgroup :label="opt[0]?.groupTitle || 'Fields'">
+                      <option
+                        v-for="o in opt"
+                        :key="'field-create-opt-' + fieldIdToString(o.id) + '-' + !!o.group"
+                        :value="o"
+                      >
                       {{ o.title }}
                     </option>
                     <option v-if="opt.length == 0" :value="opt">
@@ -149,7 +165,11 @@ import { defineComponent } from "vue";
 
 import { useTimelineStore } from "@/stores/timeline";
 import { useRenderStore } from "@/stores/render";
-import { formatDuration, useBlackboxStore } from "@/stores/blackbox";
+import {
+  blackboxFieldIDToString,
+  formatDuration,
+  useBlackboxStore,
+} from "@/stores/blackbox";
 
 import TimeGraphComponent from "@/components/TimeGraphComponent.vue";
 import TimelineComponent from "@/components/TimelineComponent.vue";
@@ -170,6 +190,7 @@ export default defineComponent({
       tl: useTimelineStore(),
       bb: useBlackboxStore(),
       formatDuration,
+      fieldIdToString: blackboxFieldIDToString,
     };
   },
   data() {
@@ -183,7 +204,11 @@ export default defineComponent({
       deep: true,
     },
   },
-  computed: {},
+  computed: {
+    hasVisibleGraphs() {
+      return this.tl.graphFields.some((fields) => fields.length);
+    },
+  },
 });
 </script>
 
@@ -221,4 +246,5 @@ export default defineComponent({
     }
   }
 }
+
 </style>

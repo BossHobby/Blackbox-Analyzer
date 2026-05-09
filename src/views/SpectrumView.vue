@@ -8,15 +8,26 @@
       >
       <span class="tag">{{ bb.entryCount }} samples</span>
       <span class="tag">{{ formatDuration(bb.duration) }}</span>
+      <span v-if="bb.hasSelection" class="tag is-info">
+        Selected {{ bb.selectedEntryCount }} samples ·
+        {{ formatDuration(bb.selectedDuration) }}
+      </span>
       <span v-if="bb.isRoverLog" class="tag is-warning">Rover presets</span>
     </div>
 
     <div>
+      <ThrottleHeatmapComponent />
       <SpectrumGraphComponent
         v-for="(fields, index) in sp.graphFields"
+        v-show="fields.length"
         :key="'spectrum-' + index"
         :fields="fields"
+        :graph-index="index"
       />
+      <div v-if="!hasVisibleGraphs" class="notification is-warning mx-4">
+        No valid spectrum fields are selected. Add fields in the sidebar or apply
+        the default preset.
+      </div>
     </div>
 
     <div class="sidebar" :class="{ 'is-visible': render.sidebar }">
@@ -37,16 +48,22 @@
         class="mt-4"
       >
         <h4 class="subtitle is-4 mb-2">
-          {{ graph.title || `Graph ${graphIndex + 1}` }}
+          Graph {{ graphIndex + 1 }}
           <button
             class="delete mt-1"
-            @click="sp.graphs.splice(graphIndex, 1)"
+            @click="sp.removeGraph(graphIndex)"
           ></button>
         </h4>
+        <input
+          class="input is-small mb-3"
+          type="text"
+          placeholder="Graph title"
+          v-model="sp.graphs[graphIndex].title"
+        />
 
         <div
           v-for="(field, fieldIndex) in graph.fields"
-          :key="'field-' + field.id.toString()"
+          :key="'field-' + fieldIdToString(field.id)"
           class="mb-2"
         >
           <div class="field has-addons">
@@ -57,7 +74,7 @@
                     v-for="(opt, index) in bb.fieldOptions"
                     :key="'field-optgtp-' + index"
                   >
-                    <optgroup>
+                    <optgroup :label="opt[0]?.groupTitle || 'Fields'">
                       <option
                         v-for="o in opt.filter((o: any) => !o.group)"
                         :key="'field-opt-' + o.id.name + '-' + o.id.index"
@@ -93,11 +110,11 @@
             <div class="select">
               <select v-model="sp.fieldTemplate[graphIndex]">
                 <option :value="undefined">Select...</option>
-                <template
-                  v-for="(opt, index) in bb.fieldOptions"
-                  :key="'field-create-optgtp-' + index"
-                >
-                  <optgroup>
+                  <template
+                    v-for="(opt, index) in bb.fieldOptions"
+                    :key="'field-create-optgtp-' + index"
+                  >
+                    <optgroup :label="opt[0]?.groupTitle || 'Fields'">
                     <option
                       v-for="o in opt"
                       :key="'field-create-opt-' + o.id.name + '-' + o.id.index"
@@ -139,13 +156,19 @@ import { useRenderStore } from "@/stores/render";
 import { useSpectrumStore } from "@/stores/spectrum";
 
 import SpectrumGraphComponent from "@/components/SpectrumGraphComponent.vue";
-import { formatDuration, useBlackboxStore } from "@/stores/blackbox";
+import ThrottleHeatmapComponent from "@/components/ThrottleHeatmapComponent.vue";
+import {
+  blackboxFieldIDToString,
+  formatDuration,
+  useBlackboxStore,
+} from "@/stores/blackbox";
 import EmptyState from "@/components/EmptyState.vue";
 
 export default defineComponent({
   name: "SpectrumView",
   components: {
     SpectrumGraphComponent,
+    ThrottleHeatmapComponent,
     EmptyState,
   },
   setup() {
@@ -154,6 +177,7 @@ export default defineComponent({
       sp: useSpectrumStore(),
       bb: useBlackboxStore(),
       formatDuration,
+      fieldIdToString: blackboxFieldIDToString,
     };
   },
   data() {
@@ -165,6 +189,11 @@ export default defineComponent({
         localStorage.setItem("spectrum-graphs", JSON.stringify(newValue));
       },
       deep: true,
+    },
+  },
+  computed: {
+    hasVisibleGraphs() {
+      return this.sp.graphFields.some((fields) => fields.length);
     },
   },
 });
