@@ -44,7 +44,7 @@ jobs:
           npm run build:gh-pages
 
       - name: upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: gh-pages
           path: docs
@@ -63,7 +63,7 @@ jobs:
           git pull
           git checkout gh-pages
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: gh-pages
 

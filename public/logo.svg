@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Guacalyzer logo</title>
+  <desc id="desc">A green oscilloscope trace shaped like an avocado pit inside a dark circular badge.</desc>
+  <defs>
+    <linearGradient id="shell" x1="48" x2="208" y1="32" y2="224" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#72d144" />
+      <stop offset="1" stop-color="#3b8f25" />
+    </linearGradient>
+    <linearGradient id="pit" x1="96" x2="160" y1="88" y2="184" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f2d271" />
+      <stop offset="1" stop-color="#c7832e" />
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="#292929" />
+  <path d="M128 28c45 0 86 45 86 100 0 58-38 100-86 100s-86-42-86-100c0-55 41-100 86-100Z" fill="url(#shell)" />
+  <path d="M128 53c33 0 62 34 62 76 0 44-27 75-62 75s-62-31-62-75c0-42 29-76 62-76Z" fill="#1c1c1c" opacity=".86" />
+  <path d="M100 145c0-22 12-43 28-43s28 21 28 43c0 23-12 39-28 39s-28-16-28-39Z" fill="url(#pit)" />
+  <path d="M53 132h30l14-25 19 56 17-83 22 74 13-22h35" fill="none" stroke="#e9ebfc" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M53 132h30l14-25 19 56 17-83 22 74 13-22h35" fill="none" stroke="#72d144" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

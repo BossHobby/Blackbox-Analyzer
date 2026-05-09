@@ -5,7 +5,10 @@
     aria-label="main navigation"
   >
     <div class="navbar-brand">
-      <router-link class="navbar-item py-1" to="/"> GUACALYZER </router-link>
+      <router-link class="navbar-item py-1 brand" to="/">
+        <img src="/logo-header.svg" alt="" class="brand-logo" />
+        <span class="brand-text">GUACALYZER</span>
+      </router-link>
 
       <a
         role="button"
@@ -73,3 +76,25 @@ export default defineComponent({
   },
 });
 </script>
+
+<style lang="scss" scoped>
+.brand {
+  gap: 0.55rem;
+  min-width: 13rem;
+  position: relative;
+}
+
+.brand-logo {
+  max-height: 3rem;
+  width: 3rem;
+}
+
+.brand-text {
+  color: #e9ebfc;
+  font-size: 1.08rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgb(0 0 0 / 45%), 0 0 12px rgb(233 235 252 / 18%);
+}
+</style>
