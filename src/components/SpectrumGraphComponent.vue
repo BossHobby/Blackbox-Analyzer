@@ -158,6 +158,55 @@ export default defineComponent({
           return field.title + " " + str;
         });
     },
+    peakLabels() {
+      const nyquist = this.sampleFrequency / 2;
+      if (!Number.isFinite(nyquist) || nyquist <= 0) {
+        return [];
+      }
+
+      return this.spectrumData.power
+        .map((power, fieldIndex) => {
+          if (!power?.length) {
+            return undefined;
+          }
+
+          const minFrequency = 20;
+          const startBin = Math.max(
+            Math.floor((minFrequency / nyquist) * power.length),
+            1
+          );
+          let peakIndex = -1;
+          let peakPower = -Infinity;
+          for (let i = startBin; i < power.length - 1; i++) {
+            const value = power[i];
+            if (
+              Number.isFinite(value) &&
+              value > peakPower &&
+              value >= power[i - 1] &&
+              value >= power[i + 1]
+            ) {
+              peakIndex = i;
+              peakPower = value;
+            }
+          }
+
+          if (peakIndex < 0) {
+            return undefined;
+          }
+
+          return {
+            fieldIndex,
+            frequency: (peakIndex / (power.length - 1)) * nyquist,
+            power: peakPower,
+          };
+        })
+        .filter(
+          (
+            peak
+          ): peak is { fieldIndex: number; frequency: number; power: number } =>
+            peak != undefined
+        );
+    },
   },
   watch: {
     async spectrumInput(inputs: Float32Array[]) {
@@ -271,6 +320,33 @@ export default defineComponent({
         for (const [index, path] of this.spectrumPath.entries()) {
           ctx.strokeStyle = this.render.colors[index];
           ctx.stroke(path);
+        }
+
+        ctx.font = "12px Roboto Mono";
+        ctx.textAlign = "center";
+        for (const peak of this.peakLabels) {
+          const x =
+            this.paddingLeft +
+            (peak.frequency / (this.sampleFrequency / 2)) * this.plotWidth;
+          if (
+            !Number.isFinite(x) ||
+            x < this.paddingLeft ||
+            x > this.canvas.width
+          ) {
+            continue;
+          }
+
+          ctx.strokeStyle = this.render.colors[peak.fieldIndex];
+          ctx.fillStyle = this.render.colors[peak.fieldIndex];
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, this.plotHeight);
+          ctx.stroke();
+          ctx.fillText(
+            `${peak.frequency.toFixed(0)}Hz`,
+            x,
+            18 + peak.fieldIndex * 16
+          );
         }
 
         const freqPerPixel = this.sampleFrequency / 2 / this.plotWidth;

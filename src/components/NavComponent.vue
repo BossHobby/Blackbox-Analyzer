@@ -40,17 +40,24 @@
 
     <div class="navbar-end">
       <div class="navbar-item">
-        <span v-if="bb.loadError" class="has-text-danger-light">
+        <span
+          v-if="bb.loadState == LoadState.ERROR"
+          class="has-text-danger-light"
+        >
           {{ bb.loadError }}
         </span>
-        <span v-else>{{ bb.filename }}</span>
+        <span v-else-if="bb.loadState == LoadState.LOADING">Loading...</span>
+        <span v-else-if="bb.isLoaded">
+          {{ bb.filename }} · {{ formatDuration(bb.duration) }}
+        </span>
+        <span v-else class="has-text-grey-lighter">No file loaded</span>
       </div>
     </div>
     <div class="navbar-end">
       <div class="navbar-item">
         <div class="buttons">
           <spinner-btn class="button is-primary" @click="bb.loadBlackbox()">
-            Load File
+            {{ bb.loadState == LoadState.LOADING ? "Loading..." : "Load File" }}
           </spinner-btn>
         </div>
       </div>
@@ -62,7 +69,8 @@
 </template>
 
 <script lang="ts">
-import { useBlackboxStore } from "@/stores/blackbox";
+import { BlackboxLoadState, useBlackboxStore } from "@/stores/blackbox";
+import { formatDuration } from "@/stores/blackbox";
 import { useRenderStore } from "@/stores/render";
 import { defineComponent } from "vue";
 
@@ -71,6 +79,8 @@ export default defineComponent({
   setup() {
     return {
       bb: useBlackboxStore(),
+      formatDuration,
+      LoadState: BlackboxLoadState,
       render: useRenderStore(),
     };
   },

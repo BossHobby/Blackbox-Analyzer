@@ -1,55 +1,119 @@
 <template>
-  <h1 class="title" v-if="!tl.ready">No file loaded</h1>
-  <div style="margin-top: 60px; margin-bottom: 120px">
-    <StickOverlay />
-    <TimeGraphComponent
-      v-for="(fields, index) in tl.graphFields"
-      :key="'graph-' + index"
-      :fields="fields"
-    />
-  </div>
+  <EmptyState v-if="!bb.isLoaded" />
+  <template v-else>
+    <div class="analysis-summary mx-4 mb-4">
+      <span class="tag is-primary">{{ bb.filename }}</span>
+      <span class="tag">{{ bb.entryCount }} samples</span>
+      <span class="tag">{{ formatDuration(bb.duration) }}</span>
+      <span class="tag">{{ bb.sampleFrequency.toFixed(0) }} Hz</span>
+      <span v-if="bb.isRoverLog" class="tag is-warning">Rover presets</span>
+    </div>
+    <div style="margin-top: 60px; margin-bottom: 120px">
+      <StickOverlay />
+      <TimeGraphComponent
+        v-for="(fields, index) in tl.graphFields"
+        :key="'graph-' + index"
+        :fields="fields"
+      />
+    </div>
 
-  <div class="sidebar" :class="{ 'is-visible': render.sidebar }">
-    <button class="button is-primary mt-4" @click="tl.addGraph()">
-      <font-awesome-icon icon="fa-solid fa-plus" size="lg" fixed-width />
-      Graph
-    </button>
-
-    <div
-      v-for="(graph, graphIndex) in tl.graphs"
-      :key="'graph-config-' + graphIndex"
-      class="mt-4"
-    >
-      <h4 class="subtitle is-4 mb-2">
-        Graph {{ graphIndex + 1 }}
-        <button
-          class="delete mt-1"
-          @click="tl.graphs.splice(graphIndex, 1)"
-        ></button>
-      </h4>
+    <div class="sidebar" :class="{ 'is-visible': render.sidebar }">
+      <button class="button is-primary mt-4" @click="tl.addGraph()">
+        <font-awesome-icon icon="fa-solid fa-plus" size="lg" fixed-width />
+        Graph
+      </button>
+      <button
+        class="button is-light mt-4 ml-2"
+        @click="tl.applyDefaultGraphs(bb.isRoverLog)"
+      >
+        {{ bb.isRoverLog ? "Rover Preset" : "Default Preset" }}
+      </button>
 
       <div
-        v-for="(field, fieldIndex) in graph.fields"
-        :key="'field-' + field.id.toString()"
-        class="mb-2"
+        v-for="(graph, graphIndex) in tl.graphs"
+        :key="'graph-config-' + graphIndex"
+        class="mt-4"
       >
+        <h4 class="subtitle is-4 mb-2">
+          {{ graph.title || `Graph ${graphIndex + 1}` }}
+          <button
+            class="delete mt-1"
+            @click="tl.graphs.splice(graphIndex, 1)"
+          ></button>
+        </h4>
+
+        <div
+          v-for="(field, fieldIndex) in graph.fields"
+          :key="'field-' + field.id.toString()"
+          class="mb-2"
+        >
+          <div class="field has-addons">
+            <div class="control">
+              <div class="select">
+                <select v-model="tl.graphs[graphIndex].fields[fieldIndex].id">
+                  <template
+                    v-for="(opt, index) in bb.fieldOptions"
+                    :key="'field-optgtp-' + index"
+                  >
+                    <optgroup>
+                      <option
+                        v-for="o in opt.filter((o: any) => !o.group)"
+                        :key="'field-opt-' + o.name"
+                        :value="o.id"
+                      >
+                        {{ o.title }}
+                      </option>
+                      <option v-if="opt.length == 0" :value="opt.id">
+                        {{ opt.title }}
+                      </option>
+                    </optgroup>
+                  </template>
+                </select>
+              </div>
+            </div>
+            <p class="control">
+              <input
+                class="input"
+                type="number"
+                step="1"
+                min="0"
+                max="100"
+                v-model="tl.graphs[graphIndex].fields[fieldIndex].expo"
+              />
+            </p>
+            <div class="control">
+              <a
+                class="button is-danger"
+                @click="tl.graphs[graphIndex].fields.splice(fieldIndex, 1)"
+              >
+                <font-awesome-icon
+                  icon="fa-solid fa-xmark"
+                  size="lg"
+                  fixed-width
+                />
+              </a>
+            </div>
+          </div>
+        </div>
+
         <div class="field has-addons">
           <div class="control">
             <div class="select">
-              <select v-model="tl.graphs[graphIndex].fields[fieldIndex].id">
+              <select v-model="tl.fieldTemplate[graphIndex]">
+                <option :value="undefined">Select...</option>
                 <template
                   v-for="(opt, index) in bb.fieldOptions"
-                  :key="'field-optgtp-' + index"
+                  :key="'field-create-optgtp-' + index"
                 >
                   <optgroup>
                     <option
-                      v-for="o in opt.filter((o: any) => !o.group)"
-                      :key="'field-opt-' + o.name"
-                      :value="o.id"
+                      v-for="o in opt"
+                      :key="'field-create-opt-' + o.name"
+                      :value="o"
                     >
                       {{ o.title }}
                     </option>
-                    <option v-if="opt.length == 0" :value="opt.id">
+                    <option v-if="opt.length == 0" :value="opt">
                       {{ opt.title }}
                     </option>
                   </optgroup>
@@ -57,72 +121,27 @@
               </select>
             </div>
           </div>
-          <p class="control">
-            <input
-              class="input"
-              type="number"
-              step="1"
-              min="0"
-              max="100"
-              v-model="tl.graphs[graphIndex].fields[fieldIndex].expo"
-            />
-          </p>
           <div class="control">
-            <a
-              class="button is-danger"
-              @click="tl.graphs[graphIndex].fields.splice(fieldIndex, 1)"
+            <button
+              class="button is-primary"
+              @click="tl.addField(graphIndex)"
+              :disabled="tl.fieldTemplate[graphIndex] == undefined"
             >
               <font-awesome-icon
-                icon="fa-solid fa-xmark"
+                icon="fa-solid fa-plus"
                 size="lg"
                 fixed-width
               />
-            </a>
+            </button>
           </div>
-        </div>
-      </div>
-
-      <div class="field has-addons">
-        <div class="control">
-          <div class="select">
-            <select v-model="tl.fieldTemplate[graphIndex]">
-              <option :value="undefined">Select...</option>
-              <template
-                v-for="(opt, index) in bb.fieldOptions"
-                :key="'field-create-optgtp-' + index"
-              >
-                <optgroup>
-                  <option
-                    v-for="o in opt"
-                    :key="'field-create-opt-' + o.name"
-                    :value="o"
-                  >
-                    {{ o.title }}
-                  </option>
-                  <option v-if="opt.length == 0" :value="opt">
-                    {{ opt.title }}
-                  </option>
-                </optgroup>
-              </template>
-            </select>
-          </div>
-        </div>
-        <div class="control">
-          <button
-            class="button is-primary"
-            @click="tl.addField(graphIndex)"
-            :disabled="tl.fieldTemplate[graphIndex] == undefined"
-          >
-            <font-awesome-icon icon="fa-solid fa-plus" size="lg" fixed-width />
-          </button>
         </div>
       </div>
     </div>
-  </div>
 
-  <div class="navbar is-fixed-bottom has-shadow" style="z-index: 20">
-    <TimelineComponent />
-  </div>
+    <div class="navbar is-fixed-bottom has-shadow" style="z-index: 20">
+      <TimelineComponent />
+    </div>
+  </template>
 </template>
 
 <script lang="ts">
@@ -130,11 +149,12 @@ import { defineComponent } from "vue";
 
 import { useTimelineStore } from "@/stores/timeline";
 import { useRenderStore } from "@/stores/render";
-import { useBlackboxStore } from "@/stores/blackbox";
+import { formatDuration, useBlackboxStore } from "@/stores/blackbox";
 
 import TimeGraphComponent from "@/components/TimeGraphComponent.vue";
 import TimelineComponent from "@/components/TimelineComponent.vue";
 import StickOverlay from "@/components/StickOverlay.vue";
+import EmptyState from "@/components/EmptyState.vue";
 
 export default defineComponent({
   name: "TimelineView",
@@ -142,12 +162,14 @@ export default defineComponent({
     TimeGraphComponent,
     TimelineComponent,
     StickOverlay,
+    EmptyState,
   },
   setup() {
     return {
       render: useRenderStore(),
       tl: useTimelineStore(),
       bb: useBlackboxStore(),
+      formatDuration,
     };
   },
   data() {

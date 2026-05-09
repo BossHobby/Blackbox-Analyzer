@@ -8,6 +8,13 @@ export enum BlackboxFieldUnit {
   RADIANS = "rad",
 }
 
+export enum BlackboxLoadState {
+  EMPTY = "empty",
+  LOADING = "loading",
+  LOADED = "loaded",
+  ERROR = "error",
+}
+
 export interface BlackboxFieldDef {
   name: string;
   title: string;
@@ -25,6 +32,16 @@ interface PickedBlackboxFile {
   name: string;
   text: string;
 }
+
+const AXIS_NAMES = ["Roll", "Pitch", "Yaw"];
+const ROVER_DEBUG_FIELDS = [
+  "Mode",
+  "Throttle Assist Target",
+  "Throttle Assist Filtered",
+  "Throttle Assist Clamp",
+  "Steering Clamp",
+  "Throttle Assist Active",
+];
 
 export function blackboxFieldIDToString(id: BlackboxFieldID) {
   if (id.index != undefined) {
@@ -55,6 +72,27 @@ export function unitBlackbox(field: BlackboxFieldDef) {
     default:
       return "";
   }
+}
+
+export function formatDuration(ms: number) {
+  if (!Number.isFinite(ms) || ms <= 0) {
+    return "0.00 s";
+  }
+
+  const seconds = ms / 1000;
+  if (seconds < 60) {
+    return `${seconds.toFixed(2)} s`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes < 60) {
+    return `${minutes}m ${remainingSeconds.toFixed(1)}s`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${hours}h ${remainingMinutes}m ${remainingSeconds.toFixed(0)}s`;
 }
 
 function processEntries(entries: any[], fields: BlackboxFieldDef[]) {
@@ -155,6 +193,7 @@ export const useBlackboxStore = defineStore("blackbox", {
     looptime: 0,
     duration: 0,
     filename: "",
+    loadState: BlackboxLoadState.EMPTY,
     loadError: "",
     start: 0,
     end: -1,
@@ -167,6 +206,35 @@ export const useBlackboxStore = defineStore("blackbox", {
         return 0;
       }
       return 1000 / state.looptime / state.rate;
+    },
+    isLoaded(state) {
+      return state.loadState == BlackboxLoadState.LOADED;
+    },
+    sampleFrequency(state) {
+      if (!state.looptime || !state.rate) {
+        return 0;
+      }
+      return 1000000 / (state.rate * state.looptime);
+    },
+    entryCount(state) {
+      return state.entries.time?.length || 0;
+    },
+    isRoverLog(state) {
+      const mode = state.entries.debug_0;
+      if (!mode?.length) {
+        return false;
+      }
+
+      const step = Math.max(Math.floor(mode.length / 100), 1);
+      let valid = 0;
+      let checked = 0;
+      for (let i = 0; i < mode.length; i += step) {
+        checked++;
+        if (mode[i] >= 0 && mode[i] <= 2) {
+          valid++;
+        }
+      }
+      return checked > 0 && valid / checked > 0.9;
     },
     fieldOptions() {
       const options = [[]] as any[];
@@ -181,6 +249,10 @@ export const useBlackboxStore = defineStore("blackbox", {
           return;
         }
 
+        const axisNames =
+          field.name == "debug" && this.isRoverLog
+            ? ROVER_DEBUG_FIELDS
+            : field.axis;
         const opt: any[] = [
           {
             ...field,
@@ -193,7 +265,7 @@ export const useBlackboxStore = defineStore("blackbox", {
             return {
               ...field,
               id: { name: field.name, index } as BlackboxFieldID,
-              title: field.title + " " + name,
+              title: field.title + " " + (axisNames?.[index] || name),
               index,
             };
           }),
@@ -228,6 +300,21 @@ export const useBlackboxStore = defineStore("blackbox", {
         });
       }
 
+      if (this.isRoverLog) {
+        const debugScale = this.fields.debug?.scale || 1;
+        for (const [index, title] of ROVER_DEBUG_FIELDS.entries()) {
+          if (!this.entries[`rover_debug_${index}`]) {
+            continue;
+          }
+          generateOption({
+            name: `rover_debug_${index}`,
+            scale: debugScale,
+            title,
+            unit: BlackboxFieldUnit.NONE,
+          });
+        }
+      }
+
       return options;
     },
   },
@@ -240,6 +327,7 @@ export const useBlackboxStore = defineStore("blackbox", {
       } catch (err: any) {
         if (err?.name != "AbortError") {
           this.loadError = err instanceof Error ? err.message : String(err);
+          this.loadState = BlackboxLoadState.ERROR;
         }
         return;
       }
@@ -248,12 +336,26 @@ export const useBlackboxStore = defineStore("blackbox", {
         return;
       }
 
+      await this.loadPickedBlackbox(pickedFile);
+    },
+    async loadBlackboxFile(file: File) {
+      await this.loadPickedBlackbox({
+        name: file.name,
+        text: await file.text(),
+      });
+    },
+    async loadPickedBlackbox(pickedFile: PickedBlackboxFile) {
+      this.loadError = "";
+      this.loadState = BlackboxLoadState.LOADING;
+      this.clearLoadedData();
+
       let blackbox: any;
       try {
         blackbox = JSON.parse(pickedFile.text);
         validateBlackboxFile(blackbox);
       } catch (err) {
         this.loadError = err instanceof Error ? err.message : String(err);
+        this.loadState = BlackboxLoadState.ERROR;
         return;
       }
 
@@ -275,6 +377,7 @@ export const useBlackboxStore = defineStore("blackbox", {
       const rawEntries = processEntries(blackbox.entries, blackboxFields);
       if (!rawEntries.length) {
         this.loadError = "Blackbox file does not contain any valid log entries";
+        this.loadState = BlackboxLoadState.ERROR;
         return;
       }
 
@@ -324,7 +427,15 @@ export const useBlackboxStore = defineStore("blackbox", {
         }
       }
 
+      for (let index = 0; index < ROVER_DEBUG_FIELDS.length; index++) {
+        const debug = entries[`debug_${index}`];
+        if (debug) {
+          entries[`rover_debug_${index}`] = debug;
+        }
+      }
+
       this.entries = entries;
+      this.loadState = BlackboxLoadState.LOADED;
       this.refreshAfterEntriesChanged();
     },
     cutEntries(start = 0, end = -1) {
@@ -353,10 +464,23 @@ export const useBlackboxStore = defineStore("blackbox", {
         : 0;
 
       const timeline = useTimelineStore();
-      timeline.initTimeline(time?.length || 0, this.duration);
+      timeline.initTimeline(time?.length || 0, this.duration, this.isRoverLog);
 
       const spectrum = useSpectrumStore();
-      spectrum.initSpectrum();
+      spectrum.initSpectrum(this.isRoverLog);
+    },
+    clearLoadedData() {
+      this.rate = 0;
+      this.looptime = 0;
+      this.duration = 0;
+      this.filename = "";
+      this.start = 0;
+      this.end = -1;
+      this.fields = {};
+      this.entries = {};
+
+      useTimelineStore().$reset();
+      useSpectrumStore().$reset();
     },
   },
 });

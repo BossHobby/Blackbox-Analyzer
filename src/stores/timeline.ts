@@ -7,6 +7,85 @@ import {
 
 const ZOOM_MIN = 100;
 
+type TimelineGraphField = {
+  id: BlackboxFieldID;
+  expo: number;
+};
+
+type TimelineGraph = {
+  title: string;
+  fields: TimelineGraphField[];
+};
+
+function field(name: string, index?: number, expo = 100): TimelineGraphField {
+  return {
+    id: index == undefined ? { name } : { name, index },
+    expo,
+  };
+}
+
+function defaultTimelineGraphs(isRover: boolean): TimelineGraph[] {
+  if (isRover) {
+    return [
+      {
+        title: "Rover Steering",
+        fields: [
+          field("setpoint", 2),
+          field("gyro_filter", 2),
+          field("setpoint_error", 2),
+        ],
+      },
+      {
+        title: "Steering PID",
+        fields: [
+          field("pid_pterm", 2),
+          field("pid_iterm", 2),
+          field("pid_dterm", 2),
+          field("pid_sum", 2),
+        ],
+      },
+      {
+        title: "Rover Assist",
+        fields: [
+          field("rover_debug_1"),
+          field("rover_debug_2"),
+          field("rover_debug_4"),
+          field("rover_debug_5"),
+        ],
+      },
+      {
+        title: "Inputs",
+        fields: [field("rx", 2), field("rx", 3)],
+      },
+    ];
+  }
+
+  return [
+    {
+      title: "Gyro Tracking",
+      fields: [
+        field("setpoint", 0),
+        field("gyro_filter", 0),
+        field("setpoint", 1),
+        field("gyro_filter", 1),
+      ],
+    },
+    {
+      title: "PID Sum",
+      fields: [field("pid_sum", 0), field("pid_sum", 1), field("pid_sum", 2)],
+    },
+    {
+      title: "Motors",
+      fields: [
+        field("motor", 0),
+        field("motor", 1),
+        field("motor", 2),
+        field("motor", 3),
+      ],
+    },
+  ];
+}
+
 export const useTimelineStore = defineStore("timeline", {
   state: () => ({
     cursor: 500, // in ms
@@ -16,6 +95,7 @@ export const useTimelineStore = defineStore("timeline", {
     fieldTemplate: [] as any[],
     graphs: [
       {
+        title: "",
         fields: [] as {
           id: BlackboxFieldID;
           expo: number;
@@ -81,7 +161,7 @@ export const useTimelineStore = defineStore("timeline", {
     },
   },
   actions: {
-    initTimeline(entries: number, duration: number) {
+    initTimeline(entries: number, duration: number, isRover = false) {
       this.$reset();
       this._entries = entries;
       this._duration = duration;
@@ -90,9 +170,19 @@ export const useTimelineStore = defineStore("timeline", {
         const str = localStorage.getItem("timeline-graphs");
         if (str) {
           this.graphs = JSON.parse(str);
+        } else {
+          this.graphs = defaultTimelineGraphs(isRover);
         }
       } catch (e: any) {
         console.warn("error loading graphs from localStorage", e);
+        this.graphs = defaultTimelineGraphs(isRover);
+      }
+
+      if (
+        !this.graphs.length ||
+        this.graphs.every((graph) => !graph.fields.length)
+      ) {
+        this.graphs = defaultTimelineGraphs(isRover);
       }
     },
     setCursor(pos: number) {
@@ -160,9 +250,14 @@ export const useTimelineStore = defineStore("timeline", {
     },
     addGraph() {
       this.graphs.push({
+        title: "",
         fields: [] as any[],
       });
       this.fieldTemplate.push(undefined);
+    },
+    applyDefaultGraphs(isRover = false) {
+      this.graphs = defaultTimelineGraphs(isRover);
+      this.fieldTemplate = [];
     },
   },
 });
