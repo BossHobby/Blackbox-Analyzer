@@ -31,7 +31,7 @@
               bb.cutEntries(tl.windowHoverIndex);
               contextMenu.show = false;
             "
-            >Stat Cut Here</a
+            >Start Cut Here</a
           >
         </li>
         <li>
@@ -118,21 +118,27 @@ export default defineComponent({
       return this.bb.entriesPerMS;
     },
     tickWidth() {
+      if (!this.tl.windowSize) {
+        return 0;
+      }
       return this.canvas.width / this.tl.windowSize;
     },
     graphFields() {
-      return this.fields.map((field: any) => {
-        return {
-          ...this.bb.fields[field.name],
-          ...field,
-        };
-      });
+      return this.fields
+        .map((field: any) => {
+          return {
+            ...this.bb.fields[field.name],
+            ...field,
+          };
+        })
+        .filter(
+          (field: any) => this.bb.entries[blackboxFieldIDToString(field.id)]
+        );
     },
     graphValues() {
       const fields = this.graphFields.map((field) => {
-        const raw = this.bb.entries[blackboxFieldIDToString(field.id)]
-          .slice(0)
-          .map((val) => transformBlackbox(field, val));
+        const entry = this.bb.entries[blackboxFieldIDToString(field.id)];
+        const raw = entry.slice(0).map((val) => transformBlackbox(field, val));
 
         return {
           ...field,
@@ -157,16 +163,22 @@ export default defineComponent({
       const { halfHeight, tickWidth } = this;
       return this.graphValues.map((field) => {
         const mul = 1 / field.range;
-        const values = field.values.slice(
-          windowOffset,
-          windowOffset + windowSize
-        );
+        const start = Math.max(windowOffset, 0);
+        const end = Math.min(windowOffset + windowSize, field.values.length);
+        const values = field.values.slice(start, end);
 
         const path = new Path2D();
-        path.moveTo(values[0], halfHeight);
+        if (!values.length || !Number.isFinite(mul) || !this.tickWidth) {
+          return path;
+        }
+        const xOffset = (start - windowOffset) * tickWidth;
+        path.moveTo(xOffset, halfHeight);
         for (let i = 0; i < values.length; i++) {
           const val = values[i] * mul;
-          path.lineTo(i * tickWidth, val * -1 * halfHeight + halfHeight);
+          path.lineTo(
+            xOffset + i * tickWidth,
+            val * -1 * halfHeight + halfHeight
+          );
         }
         return path;
       });
@@ -181,8 +193,20 @@ export default defineComponent({
       let maxLen = 0;
       return this.graphFields
         .map((field, fieldIndex) => {
-          const valUpper = this.graphValues[fieldIndex].values[hoverIndexUpper];
-          const valLower = this.graphValues[fieldIndex].values[hoverIndexLower];
+          const values = this.graphValues[fieldIndex].values;
+          if (!values.length) {
+            return { field, str: "" };
+          }
+          const lower = Math.min(
+            Math.max(hoverIndexLower, 0),
+            values.length - 1
+          );
+          const upper = Math.min(
+            Math.max(hoverIndexUpper, 0),
+            values.length - 1
+          );
+          const valUpper = values[upper];
+          const valLower = values[lower];
           const val = valUpper * hoverWeigthUpper + valLower * hoverWeigthLower;
           const str = val.toFixed(2).toString();
           maxLen = Math.max(maxLen, str.length);
@@ -300,9 +324,7 @@ export default defineComponent({
       }
 
       if (this.bb.start >= this.tl.windowOffset) {
-        const pos =
-          (this.bb.start - this.tl.windowOffset) *
-          this.tl.windowPixelsPerMS(this.canvas.width);
+        const pos = (this.bb.start - this.tl.windowOffset) * this.tickWidth;
         ctx.strokeStyle = Color.RED;
         ctx.beginPath();
         ctx.moveTo(pos, 0);
@@ -311,9 +333,7 @@ export default defineComponent({
       }
 
       if (this.bb.end >= this.tl.windowOffset) {
-        const pos =
-          (this.bb.end - this.tl.windowOffset) *
-          this.tl.windowPixelsPerMS(this.canvas.width);
+        const pos = (this.bb.end - this.tl.windowOffset) * this.tickWidth;
         ctx.strokeStyle = Color.RED;
         ctx.beginPath();
         ctx.moveTo(pos, 0);

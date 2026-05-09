@@ -45,7 +45,7 @@ export const useTimelineStore = defineStore("timeline", {
     },
     windowSize(): number {
       const bb = useBlackboxStore();
-      return Math.floor(this.zoom * bb.entriesPerMS);
+      return Math.max(Math.floor(this.zoom * bb.entriesPerMS), 0);
     },
     windowOffset(): number {
       const bb = useBlackboxStore();
@@ -96,31 +96,39 @@ export const useTimelineStore = defineStore("timeline", {
       }
     },
     setCursor(pos: number) {
+      if (this._duration <= 0) {
+        this.cursor = 0;
+        return;
+      }
       this.cursor = Math.min(
         Math.max(pos, this.zoom / 2),
-        this._duration - this.zoom / 2
+        Math.max(this._duration - this.zoom / 2, this.zoom / 2)
       );
     },
     moveCursor(delta: number) {
+      if (this._duration <= 0) {
+        this.cursor = 0;
+        return;
+      }
       this.cursor = Math.min(
         Math.max(this.cursor - delta, this.zoom / 2),
-        this._duration - this.zoom / 2
+        Math.max(this._duration - this.zoom / 2, this.zoom / 2)
       );
     },
     setZoom(delta: number) {
       this.zoom = Math.min(
         Math.max(Math.round(delta), ZOOM_MIN),
-        Math.min(this._duration, 30 * 1000)
+        Math.max(Math.min(this._duration, 30 * 1000), ZOOM_MIN)
       );
     },
     modifyZoom(delta: number) {
       this.zoom = Math.min(
         Math.max(Math.round(this.zoom + this.zoom * delta), ZOOM_MIN),
-        Math.min(this._duration, 30 * 1000)
+        Math.max(Math.min(this._duration, 30 * 1000), ZOOM_MIN)
       );
       this.cursor = Math.min(
         Math.max(this.cursor, this.zoom / 2),
-        this._duration - this.zoom / 2
+        Math.max(this._duration - this.zoom / 2, this.zoom / 2)
       );
     },
     setWindowHover(width: number, offset: number) {

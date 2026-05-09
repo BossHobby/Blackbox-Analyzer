@@ -75,19 +75,21 @@ export default defineComponent({
         };
       });
     },
-    specturmInput() {
+    spectrumInput() {
       const end = this.bb.end > 0 ? this.bb.end : this.bb.entries.time.length;
       const inputSize = end - this.bb.start;
       const size = inputSize - (inputSize % 2 ? 1 : 0);
 
-      return this.spectrumFields.map((field) => {
-        return this.bb.entries[blackboxFieldIDToString(field.id)].slice(
-          this.bb.start,
-          size
-        );
-      });
+      if (size < 2) {
+        return [];
+      }
+
+      return this.spectrumFields
+        .map((field) => this.bb.entries[blackboxFieldIDToString(field.id)])
+        .filter((entry): entry is Float32Array => entry != undefined)
+        .map((entry) => entry.slice(this.bb.start, this.bb.start + size));
     },
-    specturmDataDecimated() {
+    spectrumDataDecimated() {
       return this.spectrumData.power.map((power) =>
         Analysis.decimate(this.plotWidth, power)
       );
@@ -96,15 +98,15 @@ export default defineComponent({
       const height =
         this.spectrumData.min >= 0 ? this.plotHeight : this.halfHeight;
 
-      return this.specturmDataDecimated.map((power) => {
+      return this.spectrumDataDecimated.map((power) => {
         const path = new Path2D();
         const data = power.map((p: number) => p / this.spectrumData.range);
+        if (!data.length) {
+          return path;
+        }
         const tickWidth = this.plotWidth / data.length;
 
-        path.moveTo(
-          this.paddingLeft,
-          height - height * data[0]
-        );
+        path.moveTo(this.paddingLeft, height - height * data[0]);
         for (let i = 0; i < data.length; i++) {
           path.lineTo(
             this.paddingLeft + i * tickWidth,
@@ -115,11 +117,14 @@ export default defineComponent({
       });
     },
     hoverValue() {
-      if (!this.specturmDataDecimated || !this.specturmDataDecimated.length) {
+      if (!this.spectrumDataDecimated || !this.spectrumDataDecimated.length) {
         return [];
       }
 
-      const tickWidth = this.plotWidth / this.specturmDataDecimated[0].length;
+      const tickWidth = this.plotWidth / this.spectrumDataDecimated[0].length;
+      if (!Number.isFinite(tickWidth) || tickWidth <= 0) {
+        return [];
+      }
       const hoverIndex = (this.sp.hoverPos - this.paddingLeft) / tickWidth;
       const hoverIndexLower = Math.floor(hoverIndex);
       const hoverWeigthLower = hoverIndex - hoverIndexLower;
@@ -129,10 +134,20 @@ export default defineComponent({
       let maxLen = 0;
       return this.spectrumFields
         .map((field, fieldIndex) => {
-          const valUpper =
-            this.specturmDataDecimated[fieldIndex][hoverIndexUpper];
-          const valLower =
-            this.specturmDataDecimated[fieldIndex][hoverIndexLower];
+          const values = this.spectrumDataDecimated[fieldIndex];
+          if (!values?.length) {
+            return { field, str: "" };
+          }
+          const lower = Math.min(
+            Math.max(hoverIndexLower, 0),
+            values.length - 1
+          );
+          const upper = Math.min(
+            Math.max(hoverIndexUpper, 0),
+            values.length - 1
+          );
+          const valUpper = values[upper];
+          const valLower = values[lower];
           const val = valUpper * hoverWeigthUpper + valLower * hoverWeigthLower;
           const str = val.toFixed(2).toString();
           maxLen = Math.max(maxLen, str.length);
@@ -145,7 +160,7 @@ export default defineComponent({
     },
   },
   watch: {
-    async specturmInput(inputs: Float32Array[]) {
+    async spectrumInput(inputs: Float32Array[]) {
       this.updateSpectrumInput(inputs);
     },
   },
@@ -159,20 +174,27 @@ export default defineComponent({
 
       const data = {
         min: Infinity,
-        max: 0,
+        max: -Infinity,
         range: 0,
         power: [] as any[],
       };
 
-      const promises = inputs.map((input) =>
-        Analysis.fft(this.sampleFrequency, input)
-      );
+      try {
+        const promises = inputs.map((input) =>
+          Analysis.fft(this.sampleFrequency, input)
+        );
 
-      for (const res of await Promise.all(promises)) {
-        data.min = Math.min(data.min, res.min);
-        data.max = Math.max(data.max, res.max);
-        data.range = Math.max(data.range, res.range);
-        data.power.push(res.power);
+        for (const res of await Promise.all(promises)) {
+          data.min = Math.min(data.min, res.min);
+          data.max = Math.max(data.max, res.max);
+          data.range = Math.max(data.range, res.range);
+          data.power.push(res.power);
+        }
+      } catch (err) {
+        console.warn("FFT failed", err);
+        this.spectrumData = data;
+        this.loading = false;
+        return;
       }
 
       data.range = Math.floor(data.range / 10) + 1;
@@ -182,7 +204,7 @@ export default defineComponent({
       this.spectrumData = data;
       this.loading = false;
 
-      console.log("specturmInput took", performance.now() - loadingStart, "ms");
+      console.log("spectrumInput took", performance.now() - loadingStart, "ms");
     },
     draw(ctx: CanvasRenderingContext2D) {
       if (!this.sp.ready) {
@@ -217,6 +239,9 @@ export default defineComponent({
       }
 
       const freqTicks = this.sampleFrequency / 2 / 50;
+      if (!Number.isFinite(freqTicks) || freqTicks <= 0) {
+        return;
+      }
       ctx.textAlign = "center";
       for (let i = 1; i < freqTicks; i++) {
         ctx.fillText(
@@ -277,7 +302,7 @@ export default defineComponent({
     },
   },
   created() {
-    this.updateSpectrumInput(this.specturmInput);
+    this.updateSpectrumInput(this.spectrumInput);
   },
 });
 </script>

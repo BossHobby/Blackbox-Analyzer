@@ -1,8 +1,8 @@
 mod utils;
 
+use core::f32;
 use realfft::RealFftPlanner;
 use serde::{Deserialize, Serialize};
-use core::f32;
 use std::cmp;
 use wasm_bindgen::prelude::*;
 
@@ -31,6 +31,10 @@ pub struct Analysis {
 
 pub fn hann_window(samples: &[f32]) -> Vec<f32> {
     let mut windowed_samples = Vec::with_capacity(samples.len());
+    if samples.is_empty() {
+        return windowed_samples;
+    }
+
     let samples_len_f32 = samples.len() as f32;
     for (i, sample) in samples.iter().enumerate() {
         let two_pi_i = 2.0 * f32::consts::PI * i as f32;
@@ -53,6 +57,16 @@ impl Analysis {
     }
 
     pub fn fft(&mut self, sample_freq: i32, input: &[f32]) -> JsValue {
+        if input.len() < 2 || sample_freq <= 0 {
+            let res = FFTResult {
+                min: 0.0,
+                max: 0.0,
+                range: 0.0,
+                power: vec![].into_boxed_slice(),
+            };
+            return serde_wasm_bindgen::to_value(&res).unwrap();
+        }
+
         let window = hann_window(input);
 
         let r2c = self.planner.plan_fft_forward(window.len());
@@ -61,10 +75,10 @@ impl Analysis {
         let mut spectrum = r2c.make_output_vec();
         r2c.process(&mut indata, &mut spectrum).unwrap();
 
-        let nc = 2.0 / (sample_freq as f32 * 1000.0 * window.len() as f32);
+        let nc = 2.0 / (sample_freq as f32 * window.len() as f32);
         let mut res = FFTResult {
             min: f32::INFINITY,
-            max: 0.0,
+            max: f32::NEG_INFINITY,
             range: 0.0,
             power: vec![0.0; spectrum.len()].into_boxed_slice(),
         };
@@ -86,10 +100,15 @@ impl Analysis {
     }
 
     pub fn decimate(&self, mut width: usize, input: &[f32]) -> Box<[f32]> {
+        if input.is_empty() || width == 0 {
+            return vec![].into_boxed_slice();
+        }
+
         let mut res = vec![0.0; width];
 
         if input.len() < width {
             width = input.len();
+            res = vec![0.0; width];
         }
 
         let entries_per_pixel = cmp::max(input.len() / width, 1);
@@ -105,6 +124,10 @@ impl Analysis {
     }
 
     pub fn moving_avg(&self, window: usize, input: &[f32]) -> Box<[f32]> {
+        if input.is_empty() || window == 0 || window > input.len() {
+            return input.to_vec().into_boxed_slice();
+        }
+
         let mut results: Vec<f32> = Vec::with_capacity(input.len());
 
         let mut sum = 0.0 as f32;
@@ -113,7 +136,7 @@ impl Analysis {
         }
         results.push(sum / window as f32);
 
-        let steps = input.len() - window - 1;
+        let steps = input.len() - window;
         for i in 0..steps {
             sum -= input[i];
             sum += input[i + window];

@@ -43,7 +43,7 @@ class WorkerManager {
   private static newWorker(
     workerCtor: new () => Worker
   ): Promise<WorkerWrapper> {
-    const maxWorkers = navigator.hardwareConcurrency - 1 || 1;
+    const maxWorkers = Math.max((navigator.hardwareConcurrency || 1) - 1, 1);
     if (this.workers.length >= maxWorkers) {
       return Promise.race(this.destroyPromises).then(() =>
         WorkerManager.newWorker(workerCtor)

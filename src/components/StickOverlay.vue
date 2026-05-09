@@ -36,9 +36,19 @@ export default defineComponent({
       const res = [];
 
       const field = this.bb.fields["rx"];
+      if (!field) {
+        return [0, 0, 0, 0];
+      }
       for (let i = 0; i < 4; i++) {
-        const valUpper = this.bb.entries[`rx_${i}`][hoverIndexUpper];
-        const valLower = this.bb.entries[`rx_${i}`][hoverIndexLower];
+        const values = this.bb.entries[`rx_${i}`];
+        if (!values?.length) {
+          res.push(0);
+          continue;
+        }
+        const lower = Math.min(Math.max(hoverIndexLower, 0), values.length - 1);
+        const upper = Math.min(Math.max(hoverIndexUpper, 0), values.length - 1);
+        const valUpper = values[upper];
+        const valLower = values[lower];
         const val = valUpper * hoverWeigthUpper + valLower * hoverWeigthLower;
         res.push(transformBlackbox(field, val));
       }

@@ -37,7 +37,10 @@
 
     <div class="navbar-end">
       <div class="navbar-item">
-        {{ bb.filename }}
+        <span v-if="bb.loadError" class="has-text-danger-light">
+          {{ bb.loadError }}
+        </span>
+        <span v-else>{{ bb.filename }}</span>
       </div>
     </div>
     <div class="navbar-end">

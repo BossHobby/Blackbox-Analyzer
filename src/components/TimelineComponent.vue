@@ -92,6 +92,9 @@ export default defineComponent({
 
       const tickDuration = this.bb.duration / 25;
       const tickWidth = tickDuration * this.tl.pixelsPerMS(this.canvas.width);
+      if (!Number.isFinite(tickWidth) || tickWidth <= 0) {
+        return;
+      }
       const ticks = Math.floor(this.canvas.width / tickWidth);
       for (let i = 1; i < ticks; i++) {
         const offset = i * tickWidth;
