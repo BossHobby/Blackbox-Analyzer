@@ -2,23 +2,24 @@
   <title id="title">Guacalyzer</title>
   <desc id="desc">Guacalyzer wordmark with a transparent avocado oscilloscope icon.</desc>
   <defs>
-    <linearGradient id="avocado" x1="4" x2="86" y1="0" y2="82" gradientUnits="userSpaceOnUse">
+    <linearGradient id="avocado" x1="10" x2="84" y1="2" y2="78" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#e9f6dc" />
       <stop offset="0.55" stop-color="#bfe7a5" />
       <stop offset="1" stop-color="#7abb55" />
     </linearGradient>
-    <linearGradient id="pit" x1="33" x2="54" y1="30" y2="67" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#d59b46" />
+    <linearGradient id="pit" x1="38" x2="63" y1="37" y2="72" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9a4a2f" />
       <stop offset="1" stop-color="#652012" />
     </linearGradient>
   </defs>
-  <g transform="translate(2 -1)">
-    <path d="M46 2c21 0 41 20 41 43 0 25-18 42-41 42S5 70 5 45C5 22 25 2 46 2Z" fill="#0b1b08" opacity=".45" transform="translate(3 3)" />
-    <path d="M46 2c21 0 41 20 41 43 0 25-18 42-41 42S5 70 5 45C5 22 25 2 46 2Z" fill="url(#avocado)" stroke="#10240b" stroke-width="3.5" stroke-linejoin="round" />
-    <path d="M46 14c15 0 28 14 28 31 0 18-12 30-28 30S18 63 18 45c0-17 13-31 28-31Z" fill="#f2f8df" opacity=".94" />
-    <path d="M34 55c0-13 5-24 12-24s12 11 12 24c0 12-5 19-12 19s-12-7-12-19Z" fill="url(#pit)" stroke="#1b0802" stroke-width="1.8" />
-    <path d="M11 45h14l6-11 9 24 7-35 10 31 6-9h17" fill="none" stroke="#10240b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity=".92" />
-    <path d="M11 45h14l6-11 9 24 7-35 10 31 6-9h17" fill="none" stroke="#e9ebfc" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+  <g transform="translate(0 -2) rotate(-8 45 43)">
+    <path d="M33 7C18 16 8 30 7 44c-1 19 12 34 31 38 16 3 35-4 45-18 12-17 12-41 3-53C78 0 52-4 33 7Z" fill="#0b1b08" opacity=".45" transform="translate(3 4)" />
+    <path d="M33 7C18 16 8 30 7 44c-1 19 12 34 31 38 16 3 35-4 45-18 12-17 12-41 3-53C78 0 52-4 33 7Z" fill="url(#avocado)" stroke="#071606" stroke-width="3.4" stroke-linejoin="round" />
+    <path d="M37 15C25 23 16 35 16 47c0 15 11 25 27 26 13 1 28-7 35-20 8-14 7-32 0-39-7-8-25-8-41 1Z" fill="#edf8de" stroke="#10240b" stroke-width="1.2" opacity=".96" />
+    <path d="M69 8c11 6 16 19 15 33-1 18-12 34-27 40 13-2 25-10 33-22 10-16 9-37 1-48-4-5-12-8-22-9Z" fill="#3c701b" opacity=".9" />
+    <path d="M39 60c-1-11 4-23 13-26 10-3 21 5 23 17 3 13-4 24-16 27-10 3-19-5-20-18Z" fill="url(#pit)" stroke="#1b0802" stroke-width="1.8" />
+    <path d="M12 47h14l7-11 8 23 8-36 9 29 7-10h18" fill="none" stroke="#10240b" stroke-width="6.2" stroke-linecap="round" stroke-linejoin="round" opacity=".9" />
+    <path d="M12 47h14l7-11 8 23 8-36 9 29 7-10h18" fill="none" stroke="#e9ebfc" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
   </g>
   <g fill="#e9ebfc" font-family="Roboto, Arial, sans-serif" font-weight="900" letter-spacing="8">
     <text x="108" y="58" font-size="48">GUACALYZER</text>
