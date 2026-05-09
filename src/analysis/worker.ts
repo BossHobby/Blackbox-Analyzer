@@ -1,9 +1,15 @@
 import FFTWorker from "./worker/fft?worker";
 
-interface WorkerWrapper {
+type WorkerJob = {
+  input: any;
+  resolve: (value: any) => void;
+  reject: (err: any) => void;
+};
+
+type WorkerSlot = {
   worker: Worker;
-  destroy: () => void;
-}
+  current?: WorkerJob;
+};
 
 function arrayRemove<T>(array: Array<T>, value: T) {
   const index = array.indexOf(value);
@@ -12,63 +18,76 @@ function arrayRemove<T>(array: Array<T>, value: T) {
   }
 }
 
-class WorkerManager {
-  private static workers: Array<Worker> = [];
-  private static destroyPromises: Array<Promise<void>> = [];
+class WorkerPool {
+  private readonly maxWorkers = Math.max(
+    (navigator.hardwareConcurrency || 1) - 1,
+    1
+  );
+  private readonly slots: WorkerSlot[] = [];
+  private readonly queue: WorkerJob[] = [];
 
-  public static wrap(workerCtor: new () => Worker) {
-    return async (input: any) => {
-      const { worker, destroy } = await WorkerManager.newWorker(workerCtor);
-      return new Promise<any>((resolve, reject) => {
-        worker.onmessage = (ev: any) => {
-          resolve(ev.data);
-          destroy();
-        };
+  public constructor(
+    private readonly workerCtor: new () => Worker,
+    private readonly transfer?: (input: any) => Transferable[]
+  ) {}
 
-        worker.onerror = (err: any) => {
-          console.warn("worker.onerror", err);
-          reject(err);
-          destroy();
-        };
-
-        worker.onmessageerror = (ev: any) => {
-          console.warn("worker.onmessageerror", ev);
-        };
-
-        worker.postMessage(input);
-      });
-    };
+  public run(input: any) {
+    return new Promise<any>((resolve, reject) => {
+      this.queue.push({ input, resolve, reject });
+      this.drain();
+    });
   }
 
-  private static newWorker(
-    workerCtor: new () => Worker
-  ): Promise<WorkerWrapper> {
-    const maxWorkers = Math.max((navigator.hardwareConcurrency || 1) - 1, 1);
-    if (this.workers.length >= maxWorkers) {
-      return Promise.race(this.destroyPromises).then(() =>
-        WorkerManager.newWorker(workerCtor)
-      );
+  private drain() {
+    while (this.queue.length) {
+      const slot = this.idleSlot() || this.createSlot();
+      if (!slot) {
+        return;
+      }
+
+      const job = this.queue.shift()!;
+      slot.current = job;
+      slot.worker.postMessage(job.input, this.transfer?.(job.input) || []);
+    }
+  }
+
+  private idleSlot() {
+    return this.slots.find((slot) => !slot.current);
+  }
+
+  private createSlot() {
+    if (this.slots.length >= this.maxWorkers) {
+      return undefined;
     }
 
-    const res = {
-      worker: new workerCtor(),
-      destroy: () => {},
+    const slot: WorkerSlot = { worker: new this.workerCtor() };
+    slot.worker.onmessage = (ev: MessageEvent) => {
+      slot.current?.resolve(ev.data);
+      slot.current = undefined;
+      this.drain();
+    };
+    slot.worker.onerror = (err: ErrorEvent) => {
+      console.warn("worker.onerror", err);
+      slot.current?.reject(err);
+      slot.worker.terminate();
+      arrayRemove(this.slots, slot);
+      this.drain();
+    };
+    slot.worker.onmessageerror = (ev: MessageEvent) => {
+      console.warn("worker.onmessageerror", ev);
+      slot.current?.reject(ev);
+      slot.current = undefined;
+      this.drain();
     };
 
-    const destroyPromise = new Promise<void>(
-      (resolve) =>
-        (res.destroy = () => {
-          arrayRemove(this.workers, res.worker);
-          arrayRemove(this.destroyPromises, destroyPromise);
-          res.worker.terminate();
-          resolve();
-        })
-    );
-    this.workers.push(res.worker);
-    this.destroyPromises.push(destroyPromise);
-
-    return Promise.resolve(res);
+    this.slots.push(slot);
+    return slot;
   }
 }
 
-export const fftWorker = WorkerManager.wrap(FFTWorker);
+const fftPool = new WorkerPool(FFTWorker, (input) => {
+  const buffer = input.input?.buffer;
+  return buffer ? [buffer] : [];
+});
+
+export const fftWorker = (input: any) => fftPool.run(input);
