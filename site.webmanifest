@@ -1,0 +1,17 @@
+{
+  "name": "Guacalyzer Blackbox Analyzer",
+  "short_name": "Guacalyzer",
+  "description": "QUICKSILVER blackbox timeline and spectrum analyzer.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#292929",
+  "theme_color": "#5baa36",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
