@@ -46,7 +46,10 @@ const ROVER_DEBUG_FIELDS = [
 const ROVER_DEBUG_SCALES = [1, 1, 100, 100, 1, 100, 100];
 const ROVER_DEBUG_FLAG = 0x1 << 1;
 
-export function blackboxFieldIDToString(id: BlackboxFieldID) {
+export function blackboxFieldIDToString(id?: BlackboxFieldID) {
+  if (!id) {
+    return "";
+  }
   if (id.index != undefined) {
     return id.name + "_" + id.index;
   }
@@ -254,25 +257,10 @@ export const useBlackboxStore = defineStore("blackbox", {
     },
     isRoverLog(state) {
       const debugFlags = state.profile?.blackbox?.debug_flags;
-      if (debugFlags != undefined) {
-        return (Number(debugFlags) & ROVER_DEBUG_FLAG) == ROVER_DEBUG_FLAG;
-      }
-
-      const mode = state.entries.debug_0;
-      if (!mode?.length) {
-        return false;
-      }
-
-      const step = Math.max(Math.floor(mode.length / 100), 1);
-      let valid = 0;
-      let checked = 0;
-      for (let i = 0; i < mode.length; i += step) {
-        checked++;
-        if (mode[i] >= 0 && mode[i] <= 2) {
-          valid++;
-        }
-      }
-      return checked > 0 && valid / checked > 0.9;
+      return (
+        debugFlags != undefined &&
+        (Number(debugFlags) & ROVER_DEBUG_FLAG) == ROVER_DEBUG_FLAG
+      );
     },
     fieldOptions() {
       const options = [[]] as any[];

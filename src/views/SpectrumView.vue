@@ -16,7 +16,6 @@
     </div>
 
     <div>
-      <ThrottleHeatmapComponent />
       <SpectrumGraphComponent
         v-for="(fields, index) in sp.graphFields"
         v-show="fields.length"
@@ -63,13 +62,14 @@
 
         <div
           v-for="(field, fieldIndex) in graph.fields"
-          :key="'field-' + fieldIdToString(field.id)"
+          :key="'field-' + graphIndex + '-' + fieldIndex"
           class="mb-2"
         >
           <div class="field has-addons">
             <div class="control">
               <div class="select">
                 <select v-model="sp.graphs[graphIndex].fields[fieldIndex].id">
+                  <option :value="undefined">Select source...</option>
                   <template
                     v-for="(opt, index) in bb.fieldOptions"
                     :key="'field-optgtp-' + index"
@@ -107,40 +107,16 @@
 
         <div class="field has-addons">
           <div class="control">
-            <div class="select">
-              <select v-model="sp.fieldTemplate[graphIndex]">
-                <option :value="undefined">Select...</option>
-                  <template
-                    v-for="(opt, index) in bb.fieldOptions"
-                    :key="'field-create-optgtp-' + index"
-                  >
-                    <optgroup :label="opt[0]?.groupTitle || 'Fields'">
-                    <option
-                      v-for="o in opt"
-                      :key="'field-create-opt-' + o.id.name + '-' + o.id.index"
-                      :value="o"
-                    >
-                      {{ o.title }}
-                    </option>
-                    <option v-if="opt.length == 0" :value="opt">
-                      {{ opt.title }}
-                    </option>
-                  </optgroup>
-                </template>
-              </select>
-            </div>
-          </div>
-          <div class="control">
             <button
               class="button is-primary"
               @click="sp.addField(graphIndex)"
-              :disabled="sp.fieldTemplate[graphIndex] == undefined"
             >
               <font-awesome-icon
                 icon="fa-solid fa-plus"
                 size="lg"
                 fixed-width
               />
+              Field
             </button>
           </div>
         </div>
@@ -156,19 +132,13 @@ import { useRenderStore } from "@/stores/render";
 import { useSpectrumStore } from "@/stores/spectrum";
 
 import SpectrumGraphComponent from "@/components/SpectrumGraphComponent.vue";
-import ThrottleHeatmapComponent from "@/components/ThrottleHeatmapComponent.vue";
-import {
-  blackboxFieldIDToString,
-  formatDuration,
-  useBlackboxStore,
-} from "@/stores/blackbox";
+import { formatDuration, useBlackboxStore } from "@/stores/blackbox";
 import EmptyState from "@/components/EmptyState.vue";
 
 export default defineComponent({
   name: "SpectrumView",
   components: {
     SpectrumGraphComponent,
-    ThrottleHeatmapComponent,
     EmptyState,
   },
   setup() {
@@ -177,7 +147,6 @@ export default defineComponent({
       sp: useSpectrumStore(),
       bb: useBlackboxStore(),
       formatDuration,
-      fieldIdToString: blackboxFieldIDToString,
     };
   },
   data() {

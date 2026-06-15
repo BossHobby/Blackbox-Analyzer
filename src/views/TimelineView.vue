@@ -60,13 +60,14 @@
 
         <div
           v-for="(field, fieldIndex) in graph.fields"
-          :key="'field-' + fieldIdToString(field.id)"
+          :key="'field-' + graphIndex + '-' + fieldIndex"
           class="mb-2"
         >
           <div class="field has-addons">
             <div class="control">
               <div class="select">
                 <select v-model="tl.graphs[graphIndex].fields[fieldIndex].id">
+                  <option :value="undefined">Select source...</option>
                   <template
                     v-for="(opt, index) in bb.fieldOptions"
                     :key="'field-optgtp-' + index"
@@ -114,40 +115,16 @@
 
         <div class="field has-addons">
           <div class="control">
-            <div class="select">
-              <select v-model="tl.fieldTemplate[graphIndex]">
-                <option :value="undefined">Select...</option>
-                  <template
-                    v-for="(opt, index) in bb.fieldOptions"
-                    :key="'field-create-optgtp-' + index"
-                  >
-                    <optgroup :label="opt[0]?.groupTitle || 'Fields'">
-                      <option
-                        v-for="o in opt"
-                        :key="'field-create-opt-' + fieldIdToString(o.id) + '-' + !!o.group"
-                        :value="o"
-                      >
-                      {{ o.title }}
-                    </option>
-                    <option v-if="opt.length == 0" :value="opt">
-                      {{ opt.title }}
-                    </option>
-                  </optgroup>
-                </template>
-              </select>
-            </div>
-          </div>
-          <div class="control">
             <button
               class="button is-primary"
               @click="tl.addField(graphIndex)"
-              :disabled="tl.fieldTemplate[graphIndex] == undefined"
             >
               <font-awesome-icon
                 icon="fa-solid fa-plus"
                 size="lg"
                 fixed-width
               />
+              Field
             </button>
           </div>
         </div>

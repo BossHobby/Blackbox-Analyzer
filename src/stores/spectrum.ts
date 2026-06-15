@@ -6,7 +6,7 @@ import {
 } from "./blackbox";
 
 type SpectrumGraphField = {
-  id: BlackboxFieldID;
+  id?: BlackboxFieldID;
 };
 
 type SpectrumGraph = {
@@ -77,32 +77,17 @@ function sanitizeSpectrumGraphs(graphs: SpectrumGraph[], isRover: boolean) {
   return sanitized.length ? sanitized : defaultSpectrumGraphs(isRover);
 }
 
-function defaultHeatmapField(graphs: SpectrumGraph[]): BlackboxFieldID {
-  const bb = useBlackboxStore();
-  if (bb.entries.gyro_raw_0) {
-    return { name: "gyro_raw", index: 0 };
-  }
-  if (bb.entries.gyro_filter_0) {
-    return { name: "gyro_filter", index: 0 };
-  }
-  return graphs[0]?.fields[0]?.id || { name: "time" };
-}
-
 export const useSpectrumStore = defineStore("spectrum", {
   state: () => ({
     hoverPos: 0,
     displayRangeX: 1,
     displayRangeY: 1,
-    heatmapField: undefined as BlackboxFieldID | undefined,
-    heatmapMaxFrequency: 300,
-    heatmapBinCount: 20,
 
-    fieldTemplate: [] as any[],
     graphs: [
       {
         title: "",
         fields: [] as {
-          id: BlackboxFieldID;
+          id?: BlackboxFieldID;
         }[],
       },
     ],
@@ -116,25 +101,21 @@ export const useSpectrumStore = defineStore("spectrum", {
       const bb = useBlackboxStore();
       const options = bb.fieldOptions.flat();
       return state.graphs.map((g) => {
-        return g.fields.map((f) => {
-          return {
-            ...f,
-            ...options.find(
+        return g.fields
+          .map((f) => {
+            const option = options.find(
               (o) =>
                 blackboxFieldIDToString(o.id) == blackboxFieldIDToString(f.id)
-            ),
-          };
-        });
+            );
+            return option && bb.entries[blackboxFieldIDToString(option.id)]
+              ? {
+                  ...f,
+                  ...option,
+                }
+              : undefined;
+          })
+          .filter((field) => field != undefined);
       });
-    },
-    heatmapFieldOption(state): any | undefined {
-      const bb = useBlackboxStore();
-      const options = bb.fieldOptions.flat().filter((option: any) => !option.group);
-      const id = state.heatmapField || defaultHeatmapField(state.graphs);
-      return options.find(
-        (option: any) =>
-          blackboxFieldIDToString(option.id) == blackboxFieldIDToString(id)
-      );
     },
   },
   actions: {
@@ -162,45 +143,21 @@ export const useSpectrumStore = defineStore("spectrum", {
     },
 
     addField(graphIndex: number) {
-      const tmpl = this.fieldTemplate[graphIndex] as any;
-      if (!tmpl) {
-        return;
-      }
-
-      if (tmpl.group) {
-        for (let i = 0; i < tmpl.group; i++) {
-          this.graphs[graphIndex].fields.push({
-            id: { name: tmpl.name, index: i } as BlackboxFieldID,
-          });
-        }
-      } else {
-        this.graphs[graphIndex].fields.push({
-          id: { name: tmpl.name } as BlackboxFieldID,
-        });
-      }
-
-      this.fieldTemplate[graphIndex] = undefined;
+      this.graphs[graphIndex].fields.push({
+        id: undefined,
+      });
     },
     addGraph() {
       this.graphs.push({
         title: "",
         fields: [] as any[],
       });
-      this.fieldTemplate.push(null);
     },
     removeGraph(graphIndex: number) {
       this.graphs.splice(graphIndex, 1);
-      this.fieldTemplate.splice(graphIndex, 1);
     },
     applyDefaultGraphs(isRover = false) {
       this.graphs = defaultSpectrumGraphs(isRover);
-      this.fieldTemplate = [];
-    },
-    setHeatmapMaxFrequency(value: number) {
-      this.heatmapMaxFrequency = Math.min(Math.max(Math.round(value), 20), 1000);
-    },
-    setHeatmapBinCount(value: number) {
-      this.heatmapBinCount = Math.min(Math.max(Math.round(value), 5), 50);
     },
   },
 });

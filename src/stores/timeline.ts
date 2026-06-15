@@ -6,9 +6,10 @@ import {
 } from "./blackbox";
 
 const ZOOM_MIN = 100;
+const AXIS_NAMES = ["Roll", "Pitch", "Yaw"];
 
 type TimelineGraphField = {
-  id: BlackboxFieldID;
+  id?: BlackboxFieldID;
   expo: number;
 };
 
@@ -59,30 +60,17 @@ function defaultTimelineGraphs(isRover: boolean): TimelineGraph[] {
     ];
   }
 
-  return [
-    {
-      title: "Gyro Tracking",
+  return AXIS_NAMES.map((axisName, axis) => {
+    return {
+      title: axisName,
       fields: [
-        field("setpoint", 0),
-        field("gyro_filter", 0),
-        field("setpoint", 1),
-        field("gyro_filter", 1),
+        field("gyro_filter", axis),
+        field("pid_pterm", axis),
+        field("pid_iterm", axis),
+        field("pid_dterm", axis),
       ],
-    },
-    {
-      title: "PID Sum",
-      fields: [field("pid_sum", 0), field("pid_sum", 1), field("pid_sum", 2)],
-    },
-    {
-      title: "Motors",
-      fields: [
-        field("motor", 0),
-        field("motor", 1),
-        field("motor", 2),
-        field("motor", 3),
-      ],
-    },
-  ];
+    };
+  });
 }
 
 function sanitizeTimelineGraphs(graphs: TimelineGraph[], isRover: boolean) {
@@ -114,12 +102,11 @@ export const useTimelineStore = defineStore("timeline", {
     hover: 0.5, // in % of zoom/window
     zoom: 1000, // in ms
 
-    fieldTemplate: [] as any[],
     graphs: [
       {
         title: "",
         fields: [] as {
-          id: BlackboxFieldID;
+          id?: BlackboxFieldID;
           expo: number;
         }[],
       },
@@ -170,15 +157,20 @@ export const useTimelineStore = defineStore("timeline", {
       const bb = useBlackboxStore();
       const options = bb.fieldOptions.flat();
       return state.graphs.map((g) => {
-        return g.fields.map((f) => {
-          return {
-            ...f,
-            ...options.find(
+        return g.fields
+          .map((f) => {
+            const option = options.find(
               (o) =>
                 blackboxFieldIDToString(o.id) == blackboxFieldIDToString(f.id)
-            ),
-          };
-        });
+            );
+            return option && bb.entries[blackboxFieldIDToString(option.id)]
+              ? {
+                  ...f,
+                  ...option,
+                }
+              : undefined;
+          })
+          .filter((field) => field != undefined);
       });
     },
   },
@@ -249,41 +241,22 @@ export const useTimelineStore = defineStore("timeline", {
     },
 
     addField(graphIndex: number) {
-      const tmpl = this.fieldTemplate[graphIndex] as any;
-      if (!tmpl) {
-        return;
-      }
-
-      if (tmpl.group) {
-        for (let i = 0; i < tmpl.group; i++) {
-          this.graphs[graphIndex].fields.push({
-            id: { name: tmpl.name, index: i } as BlackboxFieldID,
-            expo: 100,
-          });
-        }
-      } else {
-        this.graphs[graphIndex].fields.push({
-          id: { name: tmpl.name } as BlackboxFieldID,
-          expo: 100,
-        });
-      }
-
-      this.fieldTemplate[graphIndex] = undefined;
+      this.graphs[graphIndex].fields.push({
+        id: undefined,
+        expo: 100,
+      });
     },
     addGraph() {
       this.graphs.push({
         title: "",
         fields: [] as any[],
       });
-      this.fieldTemplate.push(undefined);
     },
     removeGraph(graphIndex: number) {
       this.graphs.splice(graphIndex, 1);
-      this.fieldTemplate.splice(graphIndex, 1);
     },
     applyDefaultGraphs(isRover = false) {
       this.graphs = defaultTimelineGraphs(isRover);
-      this.fieldTemplate = [];
     },
   },
 });

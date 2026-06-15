@@ -15,6 +15,111 @@ import CanvasComponent from "@/components/CanvasComponent.vue";
 import { Analysis } from "@/analysis";
 import { Color, Render } from "@/analysis/render";
 
+const MIN_PEAK_FREQUENCY = 80;
+const PEAK_SMOOTH_HZ = 3;
+const PEAK_BASELINE_HZ = 35;
+const PEAK_GUARD_HZ = 8;
+const MIN_PEAK_PROMINENCE_DB = 4;
+
+function averageWindow(values: Float32Array, start: number, end: number) {
+  let sum = 0;
+  let count = 0;
+  for (let index = start; index < end; index++) {
+    const value = values[index];
+    if (Number.isFinite(value)) {
+      sum += value;
+      count++;
+    }
+  }
+  return count ? sum / count : undefined;
+}
+
+function smoothSpectrum(power: Float32Array, radius: number) {
+  const smoothed = new Float32Array(power.length);
+  for (let index = 0; index < power.length; index++) {
+    const start = Math.max(index - radius, 0);
+    const end = Math.min(index + radius + 1, power.length);
+    smoothed[index] = averageWindow(power, start, end) ?? power[index];
+  }
+  return smoothed;
+}
+
+function detectPeak(power: Float32Array, sampleFrequency: number) {
+  const nyquist = sampleFrequency / 2;
+  if (!Number.isFinite(nyquist) || nyquist <= 0 || power.length < 3) {
+    return undefined;
+  }
+
+  const hzPerBin = nyquist / (power.length - 1);
+  if (!Number.isFinite(hzPerBin) || hzPerBin <= 0) {
+    return undefined;
+  }
+
+  const startBin = Math.max(Math.ceil(MIN_PEAK_FREQUENCY / hzPerBin), 1);
+  const smoothRadius = Math.max(Math.round(PEAK_SMOOTH_HZ / hzPerBin), 1);
+  const guardBins = Math.max(
+    Math.round(PEAK_GUARD_HZ / hzPerBin),
+    smoothRadius + 1
+  );
+  const baselineBins = Math.max(
+    Math.round(PEAK_BASELINE_HZ / hzPerBin),
+    guardBins + 1
+  );
+  const smoothed = smoothSpectrum(power, smoothRadius);
+  let best:
+    | {
+        index: number;
+        prominence: number;
+      }
+    | undefined;
+
+  for (let index = startBin; index < power.length - 1; index++) {
+    const value = smoothed[index];
+    if (
+      !Number.isFinite(value) ||
+      value < smoothed[index - 1] ||
+      value < smoothed[index + 1]
+    ) {
+      continue;
+    }
+
+    const leftBaseline = averageWindow(
+      smoothed,
+      Math.max(startBin, index - baselineBins),
+      Math.max(startBin, index - guardBins)
+    );
+    const rightBaseline = averageWindow(
+      smoothed,
+      Math.min(index + guardBins + 1, power.length),
+      Math.min(index + baselineBins + 1, power.length)
+    );
+    const baselines = [leftBaseline, rightBaseline].filter(
+      (baseline): baseline is number => baseline != undefined
+    );
+    if (!baselines.length) {
+      continue;
+    }
+
+    const prominence = value - Math.max(...baselines);
+    if (
+      prominence >= MIN_PEAK_PROMINENCE_DB &&
+      (!best || prominence > best.prominence)
+    ) {
+      best = { index, prominence };
+    }
+  }
+
+  if (!best) {
+    return undefined;
+  }
+
+  return {
+    frequency: best.index * hzPerBin,
+    power: power[best.index],
+    prominence: best.prominence,
+  };
+}
+
 export default defineComponent({
   name: "SpectrumGraphComponent",
   components: {
@@ -163,45 +268,16 @@ export default defineComponent({
         });
     },
     peakLabels() {
-      const nyquist = this.sampleFrequency / 2;
-      if (!Number.isFinite(nyquist) || nyquist <= 0) {
-        return [];
-      }
-
       return this.spectrumData.power
         .map((power, fieldIndex) => {
-          if (!power?.length) {
+          const peak = detectPeak(power, this.sampleFrequency);
+          if (!peak) {
             return undefined;
           }
-
-          const minFrequency = 20;
-          const startBin = Math.max(
-            Math.floor((minFrequency / nyquist) * power.length),
-            1
-          );
-          let peakIndex = -1;
-          let peakPower = -Infinity;
-          for (let i = startBin; i < power.length - 1; i++) {
-            const value = power[i];
-            if (
-              Number.isFinite(value) &&
-              value > peakPower &&
-              value >= power[i - 1] &&
-              value >= power[i + 1]
-            ) {
-              peakIndex = i;
-              peakPower = value;
-            }
-          }
-
-          if (peakIndex < 0) {
-            return undefined;
-          }
-
           return {
             fieldIndex,
-            frequency: (peakIndex / (power.length - 1)) * nyquist,
-            power: peakPower,
+            frequency: peak.frequency,
+            power: peak.power,
           };
         })
         .filter(
