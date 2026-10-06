@@ -25,52 +25,71 @@ function field(name: string, index?: number, expo = 100): TimelineGraphField {
   };
 }
 
+function fieldAvailable(graphField: TimelineGraphField) {
+  const bb = useBlackboxStore();
+  return !!bb.entries[blackboxFieldIDToString(graphField.id)];
+}
+
+function graph(title: string, fields: TimelineGraphField[]) {
+  const validFields = fields.filter(fieldAvailable);
+  return validFields.length ? { title, fields: validFields } : undefined;
+}
+
+function outputFields(count = 4) {
+  return Array.from({ length: count }, (_, index) => field("output", index));
+}
+
 function defaultTimelineGraphs(isRover: boolean): TimelineGraph[] {
   if (isRover) {
     return [
-      {
-        title: "Rover Steering",
-        fields: [
-          field("setpoint", 2),
-          field("gyro_filter", 2),
-          field("setpoint_error", 2),
-        ],
-      },
-      {
-        title: "Steering PID",
-        fields: [
-          field("pid_pterm", 2),
-          field("pid_iterm", 2),
-          field("pid_dterm", 2),
-          field("pid_sum", 2),
-        ],
-      },
-      {
-        title: "Rover Assist",
-        fields: [
-          field("rover_debug_2"),
-          field("rover_debug_3"),
-          field("rover_debug_6"),
-        ],
-      },
-      {
-        title: "Inputs",
-        fields: [field("rx", 2), field("rx", 3)],
-      },
-    ];
+      graph("Rover Steering", [
+        field("setpoint", 2),
+        field("gyro_filter", 2),
+        field("setpoint_error", 2),
+      ]),
+      graph("Steering PID", [
+        field("pid_pterm", 2),
+        field("pid_iterm", 2),
+        field("pid_dterm", 2),
+        field("pid_sum", 2),
+      ]),
+      graph("Rover Assist", [
+        field("rover_debug_2"),
+        field("rover_debug_3"),
+        field("rover_debug_5"),
+        field("rover_debug_6"),
+      ]),
+      graph("Inputs", [field("rx", 2), field("rx", 3)]),
+      graph("Outputs", outputFields()),
+    ].filter((item): item is TimelineGraph => item != undefined);
   }
 
-  return AXIS_NAMES.map((axisName, axis) => {
-    return {
-      title: axisName,
-      fields: [
+  const bb = useBlackboxStore();
+  return [
+    ...AXIS_NAMES.map((axisName, axis) =>
+      graph(`${axisName} Tracking`, [
+        field("setpoint", axis),
+        field("gyro_filter", axis),
+        field("setpoint_error", axis),
+        field("pid_sum", axis),
+      ])
+    ),
+    ...AXIS_NAMES.map((axisName, axis) =>
+      graph(`${axisName} PID`, [
         field("gyro_filter", axis),
         field("pid_pterm", axis),
         field("pid_iterm", axis),
         field("pid_dterm", axis),
-      ],
-    };
-  });
+      ])
+    ),
+    bb.isDynamicNotchLog
+      ? graph(
+          "Dynamic Notch",
+          Array.from({ length: 9 }, (_, index) => field("debug", index))
+        )
+      : undefined,
+    graph("Outputs", outputFields()),
+  ].filter((item): item is TimelineGraph => item != undefined);
 }
 
 function sanitizeTimelineGraphs(graphs: TimelineGraph[], isRover: boolean) {

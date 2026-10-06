@@ -287,6 +287,30 @@ export default defineComponent({
             peak != undefined
         );
     },
+    filterCutoffMarkers() {
+      const cutoffKinds = new Set<string>();
+      for (const field of this.spectrumFields as any[]) {
+        if (
+          field.name == "gyro_raw" ||
+          field.name == "gyro_filter" ||
+          field.name == "setpoint_error"
+        ) {
+          cutoffKinds.add("gyro");
+        }
+        if (field.name == "pid_dterm" || field.name == "pid_sum") {
+          cutoffKinds.add("dterm");
+        }
+      }
+
+      const nyquist = this.sampleFrequency / 2;
+      return this.bb.filterCutoffs.filter((cutoff) => {
+        return (
+          cutoffKinds.has(cutoff.kind) &&
+          cutoff.frequency > 0 &&
+          cutoff.frequency < nyquist
+        );
+      });
+    },
   },
   watch: {
     async spectrumInput(inputs: Float32Array[]) {
@@ -343,6 +367,46 @@ export default defineComponent({
       this.spectrumData = data;
       this.loading = false;
     },
+    drawFilterCutoffs(ctx: CanvasRenderingContext2D) {
+      if (!this.filterCutoffMarkers.length) {
+        return;
+      }
+
+      ctx.save();
+      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "hsla(0, 0%, 73%, 0.55)";
+      ctx.fillStyle = "hsla(0, 0%, 73%, 0.85)";
+      ctx.font = "11px Roboto Mono";
+      ctx.textAlign = "center";
+
+      for (const [index, cutoff] of this.filterCutoffMarkers.entries()) {
+        const x =
+          this.paddingLeft +
+          (cutoff.frequency / (this.sampleFrequency / 2)) * this.plotWidth;
+        if (
+          !Number.isFinite(x) ||
+          x < this.paddingLeft ||
+          x > this.canvas.width
+        ) {
+          continue;
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, this.plotHeight);
+        ctx.stroke();
+
+        const labelX = Math.min(
+          Math.max(x, this.paddingLeft + 48),
+          this.canvas.width - 48
+        );
+        const labelY = this.plotHeight - 8 - (index % 4) * 14;
+        ctx.fillText(cutoff.label, labelX, labelY);
+      }
+
+      ctx.restore();
+    },
     draw(ctx: CanvasRenderingContext2D) {
       if (!this.sp.ready) {
         return;
@@ -398,6 +462,8 @@ export default defineComponent({
         );
       }
       ctx.stroke();
+
+      this.drawFilterCutoffs(ctx);
 
       if (this.loading) {
         ctx.font = "32px Roboto Mono";

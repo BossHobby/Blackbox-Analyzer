@@ -20,38 +20,50 @@ function field(name: string, index?: number): SpectrumGraphField {
   };
 }
 
+function fieldAvailable(graphField: SpectrumGraphField) {
+  const bb = useBlackboxStore();
+  return !!bb.entries[blackboxFieldIDToString(graphField.id)];
+}
+
+function graph(title: string, fields: SpectrumGraphField[]) {
+  const validFields = fields.filter(fieldAvailable);
+  return validFields.length ? { title, fields: validFields } : undefined;
+}
+
 function defaultSpectrumGraphs(isRover: boolean): SpectrumGraph[] {
   if (isRover) {
     return [
-      {
-        title: "Yaw Tracking Noise",
-        fields: [field("gyro_filter", 2), field("setpoint_error", 2)],
-      },
-      {
-        title: "Throttle Assist",
-        fields: [field("rover_debug_6")],
-      },
-    ];
+      graph("Steering Tracking", [
+        field("gyro_filter", 2),
+        field("setpoint_error", 2),
+      ]),
+      graph("Steering DTerm", [field("pid_dterm", 2)]),
+      graph("Throttle Assist", [field("rover_debug_5")]),
+    ].filter((item): item is SpectrumGraph => item != undefined);
   }
 
   return [
-    {
-      title: "Gyro Raw",
-      fields: [
-        field("gyro_raw", 0),
-        field("gyro_raw", 1),
-        field("gyro_raw", 2),
-      ],
-    },
-    {
-      title: "Gyro Filtered",
-      fields: [
-        field("gyro_filter", 0),
-        field("gyro_filter", 1),
-        field("gyro_filter", 2),
-      ],
-    },
-  ];
+    graph("Gyro Raw", [
+      field("gyro_raw", 0),
+      field("gyro_raw", 1),
+      field("gyro_raw", 2),
+    ]),
+    graph("Gyro Filtered", [
+      field("gyro_filter", 0),
+      field("gyro_filter", 1),
+      field("gyro_filter", 2),
+    ]),
+    graph("Setpoint Error", [
+      field("setpoint_error", 0),
+      field("setpoint_error", 1),
+      field("setpoint_error", 2),
+    ]),
+    graph("DTerm", [
+      field("pid_dterm", 0),
+      field("pid_dterm", 1),
+      field("pid_dterm", 2),
+    ]),
+  ].filter((item): item is SpectrumGraph => item != undefined);
 }
 
 function sanitizeSpectrumGraphs(graphs: SpectrumGraph[], isRover: boolean) {

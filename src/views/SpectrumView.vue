@@ -2,17 +2,26 @@
   <EmptyState v-if="!bb.isLoaded" />
   <template v-else>
     <div class="analysis-summary mx-4 mb-4">
-      <span class="tag is-primary">Spectrum</span>
-      <span class="tag"
-        >{{ bb.sampleFrequency.toFixed(0) }} Hz sample rate</span
-      >
-      <span class="tag">{{ bb.entryCount }} samples</span>
-      <span class="tag">{{ formatDuration(bb.duration) }}</span>
-      <span v-if="bb.hasSelection" class="tag is-info">
-        Selected {{ bb.selectedEntryCount }} samples ·
-        {{ formatDuration(bb.selectedDuration) }}
-      </span>
-      <span v-if="bb.isRoverLog" class="tag is-warning">Rover presets</span>
+      <div class="summary-primary">
+        <span class="summary-title">Spectrum</span>
+        <span>{{ bb.profileName || bb.filename }}</span>
+        <span>{{ bb.sampleFrequency.toFixed(0) }} Hz sample rate</span>
+        <span>{{ bb.entryCount }} samples</span>
+        <span>{{ formatDuration(bb.duration) }}</span>
+        <span v-if="bb.hasSelection">
+          Selected {{ bb.selectedEntryCount }} samples ·
+          {{ formatDuration(bb.selectedDuration) }}
+        </span>
+      </div>
+      <div v-if="bb.profileSummaryTags.length" class="summary-profile">
+        <span
+          v-for="tag in bb.profileSummaryTags"
+          :key="'profile-tag-' + tag"
+          class="summary-chip"
+        >
+          {{ tag }}
+        </span>
+      </div>
     </div>
 
     <div>
@@ -24,8 +33,8 @@
         :graph-index="index"
       />
       <div v-if="!hasVisibleGraphs" class="notification is-warning mx-4">
-        No valid spectrum fields are selected. Add fields in the sidebar or apply
-        the default preset.
+        No valid spectrum fields are selected. Add fields in the sidebar or
+        apply the default preset.
       </div>
     </div>
 
@@ -38,7 +47,7 @@
         class="button is-light mt-4 ml-2"
         @click="sp.applyDefaultGraphs(bb.isRoverLog)"
       >
-        {{ bb.isRoverLog ? "Rover Preset" : "Default Preset" }}
+        {{ bb.vehicleLabel ? bb.vehicleLabel + " Preset" : "Default Preset" }}
       </button>
 
       <div
@@ -107,10 +116,7 @@
 
         <div class="field has-addons">
           <div class="control">
-            <button
-              class="button is-primary"
-              @click="sp.addField(graphIndex)"
-            >
+            <button class="button is-primary" @click="sp.addField(graphIndex)">
               <font-awesome-icon
                 icon="fa-solid fa-plus"
                 size="lg"

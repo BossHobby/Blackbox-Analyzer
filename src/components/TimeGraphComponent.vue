@@ -1,61 +1,63 @@
 <template>
-  <div
-    class="box context-menu p-1"
-    tabindex="0"
-    v-show="contextMenu.show"
-    :style="{ top: contextMenu.top + 'px', left: contextMenu.left + 'px' }"
-  >
-    <aside class="menu">
-      <ul class="menu-list">
-        <li>
-          <a
-            @click="
-              bb.start = tl.windowHoverIndex;
-              contextMenu.show = false;
-            "
-            >Start Here</a
-          >
-        </li>
-        <li>
-          <a
-            @click="
-              bb.end = tl.windowHoverIndex;
-              contextMenu.show = false;
-            "
-            >End Here</a
-          >
-        </li>
-        <li>
-          <a
-            @click="
-              bb.cutEntries(tl.windowHoverIndex);
-              contextMenu.show = false;
-            "
-            >Start Cut Here</a
-          >
-        </li>
-        <li>
-          <a
-            @click="
-              bb.cutEntries(0, tl.windowHoverIndex);
-              contextMenu.show = false;
-            "
-            >End Cut Here</a
-          >
-        </li>
-      </ul>
-    </aside>
-  </div>
-  <div class="timeline-graph">
-    <CanvasComponent
-      ref="canvas"
-      @draw="draw"
-      @mousedown="mousedown"
-      @mousemove="mousemove"
-      @mouseup="mouseup"
-      @wheel="wheel"
-      @contextmenu.capture.prevent="context"
-    />
+  <div class="time-graph-component">
+    <div
+      class="box context-menu p-1"
+      tabindex="0"
+      v-show="contextMenu.show"
+      :style="{ top: contextMenu.top + 'px', left: contextMenu.left + 'px' }"
+    >
+      <aside class="menu">
+        <ul class="menu-list">
+          <li>
+            <a
+              @click="
+                bb.start = tl.windowHoverIndex;
+                contextMenu.show = false;
+              "
+              >Start Here</a
+            >
+          </li>
+          <li>
+            <a
+              @click="
+                bb.end = tl.windowHoverIndex;
+                contextMenu.show = false;
+              "
+              >End Here</a
+            >
+          </li>
+          <li>
+            <a
+              @click="
+                bb.cutEntries(tl.windowHoverIndex);
+                contextMenu.show = false;
+              "
+              >Start Cut Here</a
+            >
+          </li>
+          <li>
+            <a
+              @click="
+                bb.cutEntries(0, tl.windowHoverIndex);
+                contextMenu.show = false;
+              "
+              >End Cut Here</a
+            >
+          </li>
+        </ul>
+      </aside>
+    </div>
+    <div class="timeline-graph">
+      <CanvasComponent
+        ref="canvas"
+        @draw="draw"
+        @mousedown="mousedown"
+        @mousemove="mousemove"
+        @mouseup="mouseup"
+        @wheel="wheel"
+        @contextmenu.capture.prevent="context"
+      />
+    </div>
   </div>
 </template>
 

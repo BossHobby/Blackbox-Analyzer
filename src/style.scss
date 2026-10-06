@@ -50,3 +50,48 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+.analysis-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.summary-primary,
+.summary-profile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.summary-primary span,
+.summary-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.65rem;
+  border-radius: 4px;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.84rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.summary-primary span {
+  border: 1px solid rgba($green, 0.34);
+  background: rgba($green, 0.12);
+  color: $white-off;
+}
+
+.summary-primary .summary-title {
+  border-color: rgba($green-light, 0.72);
+  background: rgba($green, 0.28);
+  color: $white;
+  font-weight: 700;
+}
+
+.summary-chip {
+  border: 1px solid rgba($gray-ligther, 0.22);
+  background: rgba($gray-darkest, 0.16);
+  color: rgba($white-off, 0.88);
+}

@@ -54,15 +54,19 @@
             {{ bb.loadError }}
           </span>
           <span v-else-if="bb.loadState == LoadState.LOADING">Loading...</span>
-          <span v-else-if="bb.isLoaded">
-            {{ bb.filename }} · {{ formatDuration(bb.duration) }}
+          <span v-else-if="bb.isLoaded" :title="bb.filename">
+            {{ bb.profileName || bb.filename }} ·
+            {{ bb.sampleFrequency.toFixed(0) }} Hz ·
+            {{ formatDuration(bb.duration) }}
           </span>
           <span v-else class="has-text-grey-lighter">No file loaded</span>
         </div>
         <div class="navbar-item">
           <div class="buttons">
             <spinner-btn class="button is-primary" @click="loadBlackbox()">
-              {{ bb.loadState == LoadState.LOADING ? "Loading..." : "Load File" }}
+              {{
+                bb.loadState == LoadState.LOADING ? "Loading..." : "Load File"
+              }}
             </spinner-btn>
           </div>
         </div>
