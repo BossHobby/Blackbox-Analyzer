@@ -3,8 +3,7 @@ import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
 
 import vue from "@vitejs/plugin-vue";
-import vueJsx from "@vitejs/plugin-vue-jsx";
-import topLevelAwait from "vite-plugin-top-level-await";
+import tailwindcss from "@tailwindcss/vite";
 import { ViteRsw } from "vite-plugin-rsw";
 
 const base = "/";
@@ -12,10 +11,13 @@ const base = "/";
 // https://vitejs.dev/config/
 export default defineConfig({
   base: base,
-  plugins: [ViteRsw(), topLevelAwait(), vue(), vueJsx()],
+  plugins: [ViteRsw(), vue(), tailwindcss()],
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "@cargo/analysis": fileURLToPath(
+        new URL("./@cargo/analysis/pkg", import.meta.url),
+      ),
     },
   },
   worker: {

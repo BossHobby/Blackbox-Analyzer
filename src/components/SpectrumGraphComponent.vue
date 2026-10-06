@@ -1,5 +1,5 @@
 <template>
-  <div class="spectrum-graph p-4">
+  <div class="h-[460px]">
     <CanvasComponent ref="canvas" @mousemove="mousemove" @draw="draw" />
   </div>
 </template>
@@ -9,11 +9,11 @@ import { defineComponent } from "vue";
 
 import { useBlackboxStore, blackboxFieldIDToString } from "@/stores/blackbox";
 import { useSpectrumStore } from "@/stores/spectrum";
-import { useRenderStore } from "@/stores/render";
 
 import CanvasComponent from "@/components/CanvasComponent.vue";
 import { Analysis } from "@/analysis";
-import { Color, Render } from "@/analysis/render";
+import { monoFont, Render } from "@/analysis/render";
+import { seriesColor, useChartTheme } from "@/ui/useChartTheme";
 
 const MIN_PEAK_FREQUENCY = 80;
 const PEAK_SMOOTH_HZ = 3;
@@ -59,11 +59,11 @@ function detectPeak(power: Float32Array, sampleFrequency: number) {
   const smoothRadius = Math.max(Math.round(PEAK_SMOOTH_HZ / hzPerBin), 1);
   const guardBins = Math.max(
     Math.round(PEAK_GUARD_HZ / hzPerBin),
-    smoothRadius + 1
+    smoothRadius + 1,
   );
   const baselineBins = Math.max(
     Math.round(PEAK_BASELINE_HZ / hzPerBin),
-    guardBins + 1
+    guardBins + 1,
   );
   const smoothed = smoothSpectrum(power, smoothRadius);
   let best:
@@ -86,15 +86,15 @@ function detectPeak(power: Float32Array, sampleFrequency: number) {
     const leftBaseline = averageWindow(
       smoothed,
       Math.max(startBin, index - baselineBins),
-      Math.max(startBin, index - guardBins)
+      Math.max(startBin, index - guardBins),
     );
     const rightBaseline = averageWindow(
       smoothed,
       Math.min(index + guardBins + 1, power.length),
-      Math.min(index + baselineBins + 1, power.length)
+      Math.min(index + baselineBins + 1, power.length),
     );
     const baselines = [leftBaseline, rightBaseline].filter(
-      (baseline): baseline is number => baseline != undefined
+      (baseline): baseline is number => baseline != undefined,
     );
     if (!baselines.length) {
       continue;
@@ -139,9 +139,9 @@ export default defineComponent({
   },
   setup() {
     return {
-      render: useRenderStore(),
       bb: useBlackboxStore(),
       sp: useSpectrumStore(),
+      theme: useChartTheme(),
     };
   },
   data() {
@@ -200,7 +200,7 @@ export default defineComponent({
     },
     spectrumDataDecimated() {
       return this.spectrumData.power.map((power) =>
-        Analysis.decimate(this.plotWidth, power)
+        Analysis.decimate(this.plotWidth, power),
       );
     },
     spectrumPath() {
@@ -219,7 +219,7 @@ export default defineComponent({
         for (let i = 0; i < data.length; i++) {
           path.lineTo(
             this.paddingLeft + i * tickWidth,
-            height - height * data[i]
+            height - height * data[i],
           );
         }
         return path;
@@ -249,11 +249,11 @@ export default defineComponent({
           }
           const lower = Math.min(
             Math.max(hoverIndexLower, 0),
-            values.length - 1
+            values.length - 1,
           );
           const upper = Math.min(
             Math.max(hoverIndexUpper, 0),
-            values.length - 1
+            values.length - 1,
           );
           const valUpper = values[upper];
           const valLower = values[lower];
@@ -282,9 +282,9 @@ export default defineComponent({
         })
         .filter(
           (
-            peak
+            peak,
           ): peak is { fieldIndex: number; frequency: number; power: number } =>
-            peak != undefined
+            peak != undefined,
         );
     },
     filterCutoffMarkers() {
@@ -317,6 +317,9 @@ export default defineComponent({
       this.updateSpectrumInput(inputs);
     },
   },
+  created() {
+    this.updateSpectrumInput(this.spectrumInput);
+  },
   methods: {
     mousemove(e: MouseEvent) {
       this.sp.hoverPos = Math.max(e.offsetX, this.paddingLeft);
@@ -344,7 +347,7 @@ export default defineComponent({
 
       try {
         const promises = inputs.map((input) =>
-          Analysis.fft(this.sampleFrequency, input)
+          Analysis.fft(this.sampleFrequency, input),
         );
 
         for (const res of await Promise.all(promises)) {
@@ -375,9 +378,9 @@ export default defineComponent({
       ctx.save();
       ctx.setLineDash([4, 4]);
       ctx.lineWidth = 1;
-      ctx.strokeStyle = "hsla(0, 0%, 73%, 0.55)";
-      ctx.fillStyle = "hsla(0, 0%, 73%, 0.85)";
-      ctx.font = "11px Roboto Mono";
+      ctx.strokeStyle = this.theme.text;
+      ctx.fillStyle = this.theme.text;
+      ctx.font = monoFont(11);
       ctx.textAlign = "center";
 
       for (const [index, cutoff] of this.filterCutoffMarkers.entries()) {
@@ -399,7 +402,7 @@ export default defineComponent({
 
         const labelX = Math.min(
           Math.max(x, this.paddingLeft + 48),
-          this.canvas.width - 48
+          this.canvas.width - 48,
         );
         const labelY = this.plotHeight - 8 - (index % 4) * 14;
         ctx.fillText(cutoff.label, labelX, labelY);
@@ -412,11 +415,12 @@ export default defineComponent({
         return;
       }
 
+      const theme = this.theme;
       ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
       let divs = Math.min(this.spectrumData.range / 10, 10);
 
-      ctx.strokeStyle = Color.GRAY_LIGTH;
+      ctx.strokeStyle = theme.grid;
       ctx.beginPath();
       for (let i = 0; i <= divs; i++) {
         ctx.moveTo(this.paddingLeft, (i * this.plotHeight) / divs);
@@ -424,9 +428,9 @@ export default defineComponent({
       }
       ctx.stroke();
 
-      ctx.font = "14px Roboto Mono";
+      ctx.font = monoFont(12);
       ctx.textAlign = "right";
-      ctx.fillStyle = Color.GRAY_LIGTHER;
+      ctx.fillStyle = theme.text;
       for (let i = 0; i <= divs; i++) {
         ctx.fillText(
           (
@@ -435,7 +439,7 @@ export default defineComponent({
           ).toString() + "dB",
           this.paddingLeft - 4,
           (i * this.plotHeight) / divs +
-            (i > divs / 2 ? -3 : i == divs / 2 ? 3 : 12)
+            (i > divs / 2 ? -3 : i == divs / 2 ? 3 : 12),
         );
       }
 
@@ -448,17 +452,17 @@ export default defineComponent({
         ctx.fillText(
           (i * 50).toString() + "Hz",
           this.paddingLeft + i * (this.plotWidth / freqTicks),
-          this.canvas.height
+          this.canvas.height,
         );
       }
 
-      ctx.strokeStyle = Color.GRAY_LIGTH;
+      ctx.strokeStyle = theme.grid;
       ctx.beginPath();
       for (let i = 0; i < freqTicks; i++) {
         ctx.moveTo(this.paddingLeft + i * (this.plotWidth / freqTicks), 0);
         ctx.lineTo(
           this.paddingLeft + i * (this.plotWidth / freqTicks),
-          this.plotHeight
+          this.plotHeight,
         );
       }
       ctx.stroke();
@@ -466,17 +470,17 @@ export default defineComponent({
       this.drawFilterCutoffs(ctx);
 
       if (this.loading) {
-        ctx.font = "32px Roboto Mono";
-        ctx.fillStyle = Color.GREEN;
+        ctx.font = monoFont(24);
+        ctx.fillStyle = theme.accent;
         ctx.fillText("loading...", this.plotWidth / 2, this.plotHeight / 2);
       } else {
         ctx.lineWidth = 1;
         for (const [index, path] of this.spectrumPath.entries()) {
-          ctx.strokeStyle = this.render.colors[index];
+          ctx.strokeStyle = seriesColor(theme, index);
           ctx.stroke(path);
         }
 
-        ctx.font = "12px Roboto Mono";
+        ctx.font = monoFont(12);
         ctx.textAlign = "center";
         for (const peak of this.peakLabels) {
           const x =
@@ -490,8 +494,8 @@ export default defineComponent({
             continue;
           }
 
-          ctx.strokeStyle = this.render.colors[peak.fieldIndex];
-          ctx.fillStyle = this.render.colors[peak.fieldIndex];
+          ctx.strokeStyle = seriesColor(theme, peak.fieldIndex);
+          ctx.fillStyle = seriesColor(theme, peak.fieldIndex);
           ctx.beginPath();
           ctx.moveTo(x, 0);
           ctx.lineTo(x, this.plotHeight);
@@ -499,7 +503,7 @@ export default defineComponent({
           ctx.fillText(
             `${peak.frequency.toFixed(0)}Hz`,
             x,
-            18 + peak.fieldIndex * 16
+            18 + peak.fieldIndex * 16,
           );
         }
 
@@ -512,33 +516,25 @@ export default defineComponent({
         const lines = [
           {
             text: "Frequency " + hoverFreq + " Hz",
-            color: Color.GREEN as string,
+            color: theme.accent,
           },
         ];
         for (const [index, val] of this.hoverValue.entries()) {
           lines.push({
             text: val + " dB",
-            color: this.render.colors[index],
+            color: seriesColor(theme, index),
           });
         }
         Render.hoverText(
           ctx,
+          theme,
           this.sp.hoverPos,
           this.canvas.width,
           this.canvas.height,
-          lines
+          lines,
         );
       }
     },
   },
-  created() {
-    this.updateSpectrumInput(this.spectrumInput);
-  },
 });
 </script>
-
-<style lang="scss" scoped>
-.spectrum-graph {
-  height: 500px;
-}
-</style>

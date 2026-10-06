@@ -1,29 +1,12 @@
 {
-  "extends": "@vue/tsconfig/tsconfig.web.json",
-  "include": [
-    "env.d.ts",
-    "src/**/*",
-    "src/**/*.vue"
-  ],
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ]
+      "@/*": ["./src/*"],
+      "@cargo/analysis": ["./@cargo/analysis/pkg"]
     },
-    "lib": [
-      "ES2019.Array",
-      "ES2017.Object",
-      "ES2018",
-      "ES2016",
-      "DOM",
-      "DOM.Iterable"
-    ]
-  },
-  "references": [
-    {
-      "path": "./tsconfig.config.json"
-    }
-  ]
+    "types": ["node", "wicg-file-system-access"],
+    "lib": ["ES2020", "DOM", "DOM.Iterable", "WebWorker"]
+  }
 }

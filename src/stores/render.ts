@@ -1,15 +1,21 @@
 import { defineStore } from "pinia";
 
+function readSidebar() {
+  try {
+    return localStorage.getItem("graph-settings") === "true";
+  } catch {
+    return false;
+  }
+}
+
 export type DrawFuntion = (time: DOMHighResTimeStamp) => void;
 
 export const useRenderStore = defineStore("render", {
   state: () => ({
-    sidebar: false,
+    sidebar: readSidebar(),
     drawFunctionId: 1,
     drawFunctions: {} as { [index: string]: DrawFuntion },
     animationeFrameId: 0,
-
-    colors: ["#FFBE0B", "#FF006E", "#975bea", "#3A86FF", "#FB5607"],
   }),
 
   actions: {
@@ -38,6 +44,11 @@ export const useRenderStore = defineStore("render", {
     },
     toggleSidebar() {
       this.sidebar = !this.sidebar;
+      try {
+        localStorage.setItem("graph-settings", String(this.sidebar));
+      } catch {
+        /* Settings still toggle without persistence. */
+      }
     },
   },
 });

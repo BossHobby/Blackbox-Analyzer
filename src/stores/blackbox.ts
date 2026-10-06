@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { useSpectrumStore } from "./spectrum";
 import { useTimelineStore } from "./timeline";
+import { readLastLog, saveLastLog } from "./last-log";
 
 export enum BlackboxFieldUnit {
   NONE = "none",
@@ -55,6 +56,8 @@ const AXIS_NAMES = ["Roll", "Pitch", "Yaw"];
 const ROVER_AXIS_NAMES = ["Roll", "Pitch", "Steering", "Throttle"];
 const DYNAMIC_NOTCH_DEBUG_FLAG = 0x1 << 0;
 const ROVER_DEBUG_FLAG = 0x1 << 1;
+const NAVIGATION_DEBUG_FLAG = 0x1 << 2;
+const WING_DEBUG_FLAG = 0x1 << 3;
 const ROVER_DEBUG_FIELDS = [
   "Mode",
   "Steering Clamp",
@@ -65,6 +68,31 @@ const ROVER_DEBUG_FIELDS = [
   "Accel Factor",
 ];
 const ROVER_DEBUG_SCALES = [1, 1, 100, 100, 100, 100, 100];
+// Slot layouts match the firmware's blackbox_set_debug() call sites.
+const NAVIGATION_DEBUG_FIELDS: BlackboxAxisDef[] = [
+  { title: "Heading", scale: 10, unit: BlackboxFieldUnit.DEGREES },
+  { title: "GPS Heading", scale: 10, unit: BlackboxFieldUnit.DEGREES },
+  { title: "Altitude", scale: 10, unit: BlackboxFieldUnit.METERS },
+  { title: "Heading Confidence", scale: 10, unit: BlackboxFieldUnit.PERCENT },
+  { title: "RTH State", scale: 1, unit: BlackboxFieldUnit.NONE },
+  { title: "Home Distance", scale: 1, unit: BlackboxFieldUnit.METERS },
+  { title: "Home Bearing", scale: 10, unit: BlackboxFieldUnit.DEGREES },
+  { title: "Heading Correction Flags", scale: 1, unit: BlackboxFieldUnit.NONE },
+  { title: "GPS Heading Accuracy", scale: 10, unit: BlackboxFieldUnit.DEGREES },
+  { title: "Heading Error", scale: 10, unit: BlackboxFieldUnit.DEGREES },
+  { title: "Desired Vel North (m/s)", scale: 10, unit: BlackboxFieldUnit.NONE },
+  { title: "Desired Vel East (m/s)", scale: 10, unit: BlackboxFieldUnit.NONE },
+  { title: "GPS Vel North (m/s)", scale: 10, unit: BlackboxFieldUnit.NONE },
+  { title: "GPS Vel East (m/s)", scale: 10, unit: BlackboxFieldUnit.NONE },
+  { title: "RX Override Pitch", scale: 1000, unit: BlackboxFieldUnit.NONE },
+  { title: "RX Override Roll", scale: 1000, unit: BlackboxFieldUnit.NONE },
+];
+const WING_DEBUG_FIELDS = [
+  "Mode",
+  "Launch State",
+  "Autotrim State",
+  "Failsafe Phase",
+];
 const DYNAMIC_NOTCH_DEBUG_FIELDS = AXIS_NAMES.flatMap((axis) => {
   return [1, 2, 3].map((peak) => `${axis} Notch ${peak}`);
 });
@@ -248,8 +276,12 @@ function debugFlags(profile: any) {
   return finiteNumber(profile?.blackbox?.debug_flags) || 0;
 }
 
+function hasDebugFlag(profile: any, flag: number) {
+  return (debugFlags(profile) & flag) == flag;
+}
+
 function isRoverDebugProfileLog(profile: any) {
-  return (debugFlags(profile) & ROVER_DEBUG_FLAG) == ROVER_DEBUG_FLAG;
+  return hasDebugFlag(profile, ROVER_DEBUG_FLAG);
 }
 
 // firmware only serializes the vehicle-specific profile section for its build
@@ -275,9 +307,7 @@ function profileVehicleLabel(profile: any) {
 }
 
 function isDynamicNotchProfileLog(profile: any) {
-  return (
-    (debugFlags(profile) & DYNAMIC_NOTCH_DEBUG_FLAG) == DYNAMIC_NOTCH_DEBUG_FLAG
-  );
+  return hasDebugFlag(profile, DYNAMIC_NOTCH_DEBUG_FLAG);
 }
 
 function activePidRate(profile: any) {
@@ -345,7 +375,7 @@ function setpointAxisTitle(
   field: BlackboxFieldDef,
   profile: any,
   axis: string,
-  index: number
+  index: number,
 ) {
   if (index == 3) {
     return `${field.title} ${axis}`;
@@ -369,8 +399,8 @@ function auxSummary(profile: any) {
   const labels = isRoverProfileLog(profile)
     ? ROVER_AUX_LABELS
     : isWingProfileLog(profile)
-    ? WING_AUX_LABELS
-    : MULTI_AUX_LABELS;
+      ? WING_AUX_LABELS
+      : MULTI_AUX_LABELS;
   return Object.entries(labels)
     .map(([index, label]) => {
       const channel = channelLabel(profile?.receiver?.aux?.[Number(index)]);
@@ -470,6 +500,21 @@ function debugAxisDefs(profile: any) {
     }));
   }
 
+  if (hasDebugFlag(profile, NAVIGATION_DEBUG_FLAG)) {
+    return NAVIGATION_DEBUG_FIELDS.map((def) => ({
+      ...def,
+      title: `Debug ${def.title}`,
+    }));
+  }
+
+  if (hasDebugFlag(profile, WING_DEBUG_FLAG)) {
+    return WING_DEBUG_FIELDS.map((title) => ({
+      title: `Debug ${title}`,
+      scale: 1,
+      unit: BlackboxFieldUnit.NONE,
+    }));
+  }
+
   return undefined;
 }
 
@@ -522,8 +567,8 @@ function buildProfileSummaryTags(profile: any) {
     tags.push(
       `PID ${compactNumber(profile.rover.pid.kp, 1)}/${compactNumber(
         profile.rover.pid.ki,
-        1
-      )}/${compactNumber(profile.rover.pid.kd, 1)}`
+        1,
+      )}/${compactNumber(profile.rover.pid.kd, 1)}`,
     );
   }
   if (stickRate?.accelerator) {
@@ -545,7 +590,7 @@ function buildProfileSummaryTags(profile: any) {
 
 function enrichBlackboxField(
   field: BlackboxFieldDef,
-  profile: any
+  profile: any,
 ): BlackboxFieldDef {
   const enriched: BlackboxFieldDef = {
     ...field,
@@ -599,7 +644,7 @@ function enrichBlackboxField(
 function filterCutoff(
   kind: "gyro" | "dterm",
   label: string,
-  parameter: any
+  parameter: any,
 ): BlackboxFilterCutoff | undefined {
   const type = finiteNumber(parameter?.type) || 0;
   const frequency = finiteNumber(parameter?.cutoff_freq);
@@ -649,7 +694,7 @@ function profileFilterCutoffs(profile: any): BlackboxFilterCutoff[] {
         kind: "dterm",
         frequency: dynamicMax,
         label: `DTerm Dyn Max ${dynamicMax.toFixed(0)}Hz`,
-      }
+      },
     );
   }
 
@@ -676,7 +721,7 @@ function validateBlackboxFile(blackbox: any) {
 
 async function pickBlackboxFile(): Promise<PickedBlackboxFile | undefined> {
   if ("showOpenFilePicker" in window) {
-    const pickerOpts = {
+    const pickerOpts: OpenFilePickerOptions = {
       types: [
         {
           description: "Logs",
@@ -760,7 +805,7 @@ export const useBlackboxStore = defineStore("blackbox", {
       const start = Math.min(Math.max(state.start, 0), time.length - 1);
       const end = Math.min(
         Math.max(this.activeEnd - 1, start),
-        time.length - 1
+        time.length - 1,
       );
       return (time[end] - time[start]) / 1000;
     },
@@ -829,7 +874,7 @@ export const useBlackboxStore = defineStore("blackbox", {
       }
       if (
         ["pid_pterm", "pid_iterm", "pid_dterm"].every(
-          (name) => this.fields[name]
+          (name) => this.fields[name],
         )
       ) {
         generateOption({
@@ -916,14 +961,14 @@ export const useBlackboxStore = defineStore("blackbox", {
       this.start = 0;
       this.end = -1;
       const blackboxFields = (blackbox.fields as BlackboxFieldDef[]).map(
-        (field) => enrichBlackboxField(field, this.profile)
+        (field) => enrichBlackboxField(field, this.profile),
       );
       this.fields = blackboxFields.reduce(
         (prev: any, curr: BlackboxFieldDef) => {
           prev[curr.name] = curr;
           return prev;
         },
-        {}
+        {},
       );
 
       const entries = {} as { [index: string]: Float32Array };
@@ -949,8 +994,8 @@ export const useBlackboxStore = defineStore("blackbox", {
               val = Array.isArray(val)
                 ? val[id.index]
                 : id.index == 0
-                ? val
-                : 0;
+                  ? val
+                  : 0;
             }
             values[entryIndex] = Number.isFinite(val) ? val : 0;
           }
@@ -975,7 +1020,7 @@ export const useBlackboxStore = defineStore("blackbox", {
             setpoint,
             (_, index) => {
               return setpoint[index] - gyroFilter[index];
-            }
+            },
           );
         }
       }
@@ -992,6 +1037,16 @@ export const useBlackboxStore = defineStore("blackbox", {
       this.entries = entries;
       this.loadState = BlackboxLoadState.LOADED;
       this.refreshAfterEntriesChanged();
+
+      if (import.meta.env.DEV) {
+        saveLastLog(pickedFile);
+      }
+    },
+    async restoreLastBlackbox() {
+      const log = await readLastLog();
+      if (log && this.loadState == BlackboxLoadState.EMPTY) {
+        await this.loadPickedBlackbox(log);
+      }
     },
     cutEntries(start = 0, end = -1) {
       if (!this.entries.time?.length) {

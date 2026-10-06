@@ -72,7 +72,7 @@ function sanitizeSpectrumGraphs(graphs: SpectrumGraph[], isRover: boolean) {
     bb.fieldOptions
       .flat()
       .filter((option: any) => !option.group)
-      .map((option: any) => blackboxFieldIDToString(option.id))
+      .map((option: any) => blackboxFieldIDToString(option.id)),
   );
 
   const sanitized = graphs
@@ -80,7 +80,7 @@ function sanitizeSpectrumGraphs(graphs: SpectrumGraph[], isRover: boolean) {
       return {
         ...graph,
         fields: graph.fields.filter((graphField) =>
-          validFields.has(blackboxFieldIDToString(graphField.id))
+          validFields.has(blackboxFieldIDToString(graphField.id)),
         ),
       };
     })
@@ -117,7 +117,7 @@ export const useSpectrumStore = defineStore("spectrum", {
           .map((f) => {
             const option = options.find(
               (o) =>
-                blackboxFieldIDToString(o.id) == blackboxFieldIDToString(f.id)
+                blackboxFieldIDToString(o.id) == blackboxFieldIDToString(f.id),
             );
             return option && bb.entries[blackboxFieldIDToString(option.id)]
               ? {

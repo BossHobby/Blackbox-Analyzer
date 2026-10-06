@@ -21,14 +21,14 @@ function arrayRemove<T>(array: Array<T>, value: T) {
 class WorkerPool {
   private readonly maxWorkers = Math.max(
     (navigator.hardwareConcurrency || 1) - 1,
-    1
+    1,
   );
   private readonly slots: WorkerSlot[] = [];
   private readonly queue: WorkerJob[] = [];
 
   public constructor(
     private readonly workerCtor: new () => Worker,
-    private readonly transfer?: (input: any) => Transferable[]
+    private readonly transfer?: (input: any) => Transferable[],
   ) {}
 
   public run(input: any) {

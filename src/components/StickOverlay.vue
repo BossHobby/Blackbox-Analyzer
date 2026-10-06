@@ -1,5 +1,5 @@
 <template>
-  <div class="stick-overlay">
+  <div class="py-2">
     <CanvasComponent ref="canvas" @draw="draw" />
   </div>
 </template>
@@ -7,7 +7,8 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import CanvasComponent from "@/components/CanvasComponent.vue";
-import { Color } from "@/analysis/render";
+import { monoFont } from "@/analysis/render";
+import { useChartTheme } from "@/ui/useChartTheme";
 import { useTimelineStore } from "@/stores/timeline";
 import { transformBlackbox, useBlackboxStore } from "@/stores/blackbox";
 
@@ -20,6 +21,7 @@ export default defineComponent({
     return {
       bb: useBlackboxStore(),
       tl: useTimelineStore(),
+      theme: useChartTheme(),
     };
   },
   computed: {
@@ -61,62 +63,53 @@ export default defineComponent({
         return;
       }
 
-      ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      const theme = this.theme;
+      const { width, height } = this.canvas;
+      ctx.clearRect(0, 0, width, height);
 
-      ctx.strokeStyle = "hsla(0, 0%, 73%, 0.4)";
-      ctx.fillStyle = "hsla(0, 0%, 3%, 0.4)";
-      ctx.beginPath();
-      ctx.rect(5, 5, 100, 100);
-      ctx.fill();
-      ctx.stroke();
+      // Two square gimbals: yaw/throttle on the left, roll/pitch on the right.
+      const gap = 12;
+      const size = Math.floor(Math.min(height, (width - gap) / 2)) - 1;
+      const half = size / 2;
+      const boxes = [0.5, size + gap + 0.5];
 
-      ctx.beginPath();
-      ctx.rect(115, 5, 100, 100);
-      ctx.fill();
-      ctx.stroke();
+      ctx.strokeStyle = theme.grid;
+      ctx.fillStyle = theme.subtle;
+      for (const x of boxes) {
+        ctx.beginPath();
+        ctx.rect(x, 0.5, size, size);
+        ctx.fill();
+        ctx.stroke();
+      }
 
-      ctx.font = "14px Roboto Mono";
+      const [roll, pitch, yaw, throttle] = this.rxValues;
+      const label = (value: number) => (value * 100).toFixed(0);
+
+      ctx.font = monoFont(11);
+      ctx.fillStyle = theme.text;
+      ctx.textAlign = "left";
+      ctx.fillText(label(yaw), boxes[0] + 4, half + 4);
+      ctx.fillText(label(roll), boxes[1] + 4, half + 4);
       ctx.textAlign = "center";
-      ctx.fillStyle = Color.GRAY_LIGTHER;
-      ctx.fillText((this.rxValues[0] * 100).toFixed(0), 125, 60);
-      ctx.fillText((this.rxValues[1] * 100).toFixed(0), 165, 105);
-      ctx.fillText((this.rxValues[2] * 100).toFixed(0), 20, 60);
-      ctx.fillText((this.rxValues[3] * 100).toFixed(0), 55, 105);
+      ctx.fillText(label(throttle), boxes[0] + half, size - 4);
+      ctx.fillText(label(pitch), boxes[1] + half, size - 4);
 
-      ctx.strokeStyle = Color.GRAY;
-      ctx.fillStyle = Color.RED;
-      ctx.beginPath();
-      ctx.arc(
-        55 + this.rxValues[2] * 50,
-        105 - this.rxValues[3] * 100,
-        7.5,
-        0,
-        2 * Math.PI
-      );
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.arc(
-        165 + this.rxValues[0] * 50,
-        55 - this.rxValues[1] * 50,
-        7.5,
-        0,
-        2 * Math.PI
-      );
-      ctx.fill();
-      ctx.stroke();
+      ctx.strokeStyle = theme.ink;
+      ctx.fillStyle = theme.danger;
+      // Inset the travel by the dot radius so full deflection stays visible.
+      const radius = 6;
+      const travel = half - radius;
+      const sticks = [
+        [boxes[0] + half + yaw * travel, half + (1 - 2 * throttle) * travel],
+        [boxes[1] + half + roll * travel, half - pitch * travel],
+      ];
+      for (const [x, y] of sticks) {
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+      }
     },
   },
 });
 </script>
-
-<style lang="scss" scoped>
-.stick-overlay {
-  position: fixed;
-  right: 10px;
-  top: 70px;
-  height: 110px;
-  width: 220px;
-}
-</style>

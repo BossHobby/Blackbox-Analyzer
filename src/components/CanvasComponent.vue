@@ -1,5 +1,5 @@
 <template>
-  <div ref="canvasContainer" class="canvas-container">
+  <div ref="canvasContainer" class="size-full">
     <canvas ref="canvas" />
   </div>
 </template>
@@ -10,6 +10,7 @@ import { defineComponent } from "vue";
 
 export default defineComponent({
   name: "CanvasComponent",
+  emits: ["draw"],
   setup() {
     return {
       render: useRenderStore(),
@@ -32,6 +33,19 @@ export default defineComponent({
       return this.$refs.canvasContainer as HTMLElement;
     },
   },
+  mounted() {
+    this.ctx = this.canvas.getContext("2d")!;
+    this.canvasResize();
+    this.ro = new ResizeObserver(this.canvasResize);
+    this.ro.observe(this.canvasContainer);
+    this.renderId = this.render.subscribeDraw((time) =>
+      this.$emit("draw", this.ctx, time),
+    );
+  },
+  unmounted() {
+    this.ro?.unobserve(this.canvasContainer);
+    this.render.unsubscribeDraw(this.renderId);
+  },
   methods: {
     canvasResize() {
       if (!this.canvas || !this.canvasContainer) {
@@ -41,25 +55,5 @@ export default defineComponent({
       this.height = this.canvas.height = this.canvasContainer.clientHeight;
     },
   },
-  mounted() {
-    this.ctx = this.canvas.getContext("2d")!;
-    this.canvasResize();
-    this.ro = new ResizeObserver(this.canvasResize)
-    this.ro.observe(this.canvasContainer)
-    this.renderId = this.render.subscribeDraw((time) =>
-      this.$emit("draw", this.ctx, time)
-    );
-  },
-  unmounted() {
-    this.ro?.unobserve(this.canvasContainer)
-    this.render.unsubscribeDraw(this.renderId);
-  },
 });
 </script>
-
-<style lang="scss" scoped>
-.canvas-container {
-  width: 100%;
-  height: 100%;
-}
-</style>

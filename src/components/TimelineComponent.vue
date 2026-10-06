@@ -1,5 +1,5 @@
 <template>
-  <div class="timeline">
+  <div>
     <CanvasComponent
       ref="canvas"
       @draw="draw"
@@ -16,7 +16,8 @@ import { defineComponent } from "vue";
 import { useBlackboxStore } from "@/stores/blackbox";
 import CanvasComponent from "@/components/CanvasComponent.vue";
 import { useTimelineStore } from "@/stores/timeline";
-import { Color } from "@/analysis/render";
+import { monoFont } from "@/analysis/render";
+import { useChartTheme } from "@/ui/useChartTheme";
 
 export default defineComponent({
   name: "TimelineComponent",
@@ -27,6 +28,7 @@ export default defineComponent({
     return {
       bb: useBlackboxStore(),
       tl: useTimelineStore(),
+      theme: useChartTheme(),
     };
   },
   data() {
@@ -60,7 +62,7 @@ export default defineComponent({
 
       this.tl.modifyZoom(e.deltaY / 500);
       this.tl.moveCursor(
-        (e.deltaX * 0.05) / this.tl.pixelsPerMS(this.canvas.width)
+        (e.deltaX * 0.05) / this.tl.pixelsPerMS(this.canvas.width),
       );
     },
     formatDuration(s: number) {
@@ -81,16 +83,22 @@ export default defineComponent({
         return;
       }
 
+      const theme = this.theme;
       const halfHeight = this.canvas.height / 2;
       ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-      ctx.strokeStyle = Color.GRAY_LIGTH;
+      ctx.strokeStyle = theme.grid;
       ctx.beginPath();
       ctx.moveTo(0, halfHeight);
       ctx.lineTo(this.canvas.width, halfHeight);
       ctx.stroke();
 
-      const tickDuration = this.bb.duration / 25;
+      // Keep tick labels from overlapping on narrow screens.
+      const tickCount = Math.max(
+        Math.min(Math.floor(this.canvas.width / 72), 25),
+        1,
+      );
+      const tickDuration = this.bb.duration / tickCount;
       const tickWidth = tickDuration * this.tl.pixelsPerMS(this.canvas.width);
       if (!Number.isFinite(tickWidth) || tickWidth <= 0) {
         return;
@@ -98,27 +106,27 @@ export default defineComponent({
       const ticks = Math.floor(this.canvas.width / tickWidth);
       for (let i = 1; i < ticks; i++) {
         const offset = i * tickWidth;
-        ctx.strokeStyle = Color.GRAY_LIGTH;
+        ctx.strokeStyle = theme.grid;
         ctx.beginPath();
         ctx.moveTo(offset, halfHeight - halfHeight * 0.4);
         ctx.lineTo(offset, halfHeight + halfHeight * 0.4);
         ctx.stroke();
 
-        ctx.font = "14px Roboto Mono";
+        ctx.font = monoFont(12);
         ctx.textAlign = "center";
-        ctx.fillStyle = Color.WHITE_OFF;
+        ctx.fillStyle = theme.text;
         ctx.fillText(
           this.formatDuration(i * (tickDuration / 1000)),
           offset,
-          this.canvas.height - 10
+          this.canvas.height - 10,
         );
       }
 
       const cursorPos = this.tl.cursorPos(this.canvas.width);
       const cursorWidth = this.tl.cursorWidth(this.canvas.width);
 
-      ctx.fillStyle = "hsla(0, 0%, 29%, 0.4)";
-      ctx.strokeStyle = Color.GRAY_LIGTHER;
+      ctx.fillStyle = theme.selection;
+      ctx.strokeStyle = theme.text;
       ctx.beginPath();
       ctx.moveTo(cursorPos - cursorWidth / 2, halfHeight + halfHeight * 0.4);
       ctx.lineTo(cursorPos + cursorWidth / 2, halfHeight + halfHeight * 0.4);
@@ -129,28 +137,21 @@ export default defineComponent({
       ctx.fill();
 
       const hoverPos = this.tl.windowHoverPos(cursorWidth) - cursorWidth / 2;
-      ctx.strokeStyle = Color.GREEN;
+      ctx.strokeStyle = theme.accent;
       ctx.beginPath();
       ctx.moveTo(cursorPos + hoverPos, halfHeight + halfHeight * 0.4);
       ctx.lineTo(cursorPos + hoverPos, halfHeight - halfHeight * 0.4);
       ctx.stroke();
 
-      ctx.font = "14px Roboto Mono";
+      ctx.font = monoFont(12);
       ctx.textAlign = "center";
-      ctx.fillStyle = Color.GREEN;
+      ctx.fillStyle = theme.accent;
       ctx.fillText(
         this.formatDuration(((tickDuration / 1000) * cursorWidth) / tickWidth),
         cursorPos,
-        halfHeight - halfHeight * 0.6
+        halfHeight - halfHeight * 0.6,
       );
     },
   },
 });
 </script>
-
-<style lang="scss" scoped>
-.timeline {
-  height: 110px;
-  width: 100%;
-}
-</style>

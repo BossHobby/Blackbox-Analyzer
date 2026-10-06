@@ -72,7 +72,7 @@ function defaultTimelineGraphs(isRover: boolean): TimelineGraph[] {
         field("gyro_filter", axis),
         field("setpoint_error", axis),
         field("pid_sum", axis),
-      ])
+      ]),
     ),
     ...AXIS_NAMES.map((axisName, axis) =>
       graph(`${axisName} PID`, [
@@ -80,12 +80,12 @@ function defaultTimelineGraphs(isRover: boolean): TimelineGraph[] {
         field("pid_pterm", axis),
         field("pid_iterm", axis),
         field("pid_dterm", axis),
-      ])
+      ]),
     ),
     bb.isDynamicNotchLog
       ? graph(
           "Dynamic Notch",
-          Array.from({ length: 9 }, (_, index) => field("debug", index))
+          Array.from({ length: 9 }, (_, index) => field("debug", index)),
         )
       : undefined,
     graph("Outputs", outputFields()),
@@ -98,7 +98,7 @@ function sanitizeTimelineGraphs(graphs: TimelineGraph[], isRover: boolean) {
     bb.fieldOptions
       .flat()
       .filter((option: any) => !option.group)
-      .map((option: any) => blackboxFieldIDToString(option.id))
+      .map((option: any) => blackboxFieldIDToString(option.id)),
   );
 
   const sanitized = graphs
@@ -106,7 +106,7 @@ function sanitizeTimelineGraphs(graphs: TimelineGraph[], isRover: boolean) {
       return {
         ...graph,
         fields: graph.fields.filter((graphField) =>
-          validFields.has(blackboxFieldIDToString(graphField.id))
+          validFields.has(blackboxFieldIDToString(graphField.id)),
         ),
       };
     })
@@ -180,7 +180,7 @@ export const useTimelineStore = defineStore("timeline", {
           .map((f) => {
             const option = options.find(
               (o) =>
-                blackboxFieldIDToString(o.id) == blackboxFieldIDToString(f.id)
+                blackboxFieldIDToString(o.id) == blackboxFieldIDToString(f.id),
             );
             return option && bb.entries[blackboxFieldIDToString(option.id)]
               ? {
@@ -225,7 +225,7 @@ export const useTimelineStore = defineStore("timeline", {
       }
       this.cursor = Math.min(
         Math.max(pos, this.zoom / 2),
-        Math.max(this._duration - this.zoom / 2, this.zoom / 2)
+        Math.max(this._duration - this.zoom / 2, this.zoom / 2),
       );
     },
     moveCursor(delta: number) {
@@ -235,23 +235,23 @@ export const useTimelineStore = defineStore("timeline", {
       }
       this.cursor = Math.min(
         Math.max(this.cursor - delta, this.zoom / 2),
-        Math.max(this._duration - this.zoom / 2, this.zoom / 2)
+        Math.max(this._duration - this.zoom / 2, this.zoom / 2),
       );
     },
     setZoom(delta: number) {
       this.zoom = Math.min(
         Math.max(Math.round(delta), ZOOM_MIN),
-        Math.max(Math.min(this._duration, 30 * 1000), ZOOM_MIN)
+        Math.max(Math.min(this._duration, 30 * 1000), ZOOM_MIN),
       );
     },
     modifyZoom(delta: number) {
       this.zoom = Math.min(
         Math.max(Math.round(this.zoom + this.zoom * delta), ZOOM_MIN),
-        Math.max(Math.min(this._duration, 30 * 1000), ZOOM_MIN)
+        Math.max(Math.min(this._duration, 30 * 1000), ZOOM_MIN),
       );
       this.cursor = Math.min(
         Math.max(this.cursor, this.zoom / 2),
-        Math.max(this._duration - this.zoom / 2, this.zoom / 2)
+        Math.max(this._duration - this.zoom / 2, this.zoom / 2),
       );
     },
     setWindowHover(width: number, offset: number) {

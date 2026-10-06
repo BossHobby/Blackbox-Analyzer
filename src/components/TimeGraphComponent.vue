@@ -1,53 +1,26 @@
 <template>
-  <div class="time-graph-component">
+  <div>
     <div
-      class="box context-menu p-1"
-      tabindex="0"
       v-show="contextMenu.show"
+      role="menu"
+      class="fixed z-30 flex w-40 flex-col rounded-lg border border-line bg-panel p-1 text-sm shadow-lg"
       :style="{ top: contextMenu.top + 'px', left: contextMenu.left + 'px' }"
     >
-      <aside class="menu">
-        <ul class="menu-list">
-          <li>
-            <a
-              @click="
-                bb.start = tl.windowHoverIndex;
-                contextMenu.show = false;
-              "
-              >Start Here</a
-            >
-          </li>
-          <li>
-            <a
-              @click="
-                bb.end = tl.windowHoverIndex;
-                contextMenu.show = false;
-              "
-              >End Here</a
-            >
-          </li>
-          <li>
-            <a
-              @click="
-                bb.cutEntries(tl.windowHoverIndex);
-                contextMenu.show = false;
-              "
-              >Start Cut Here</a
-            >
-          </li>
-          <li>
-            <a
-              @click="
-                bb.cutEntries(0, tl.windowHoverIndex);
-                contextMenu.show = false;
-              "
-              >End Cut Here</a
-            >
-          </li>
-        </ul>
-      </aside>
+      <button
+        v-for="item in contextMenuItems"
+        :key="item.label"
+        type="button"
+        role="menuitem"
+        class="rounded-md px-3 py-1.5 text-left hover:bg-subtle"
+        @click="
+          item.action();
+          contextMenu.show = false;
+        "
+      >
+        {{ item.label }}
+      </button>
     </div>
-    <div class="timeline-graph">
+    <div class="h-[300px]">
       <CanvasComponent
         ref="canvas"
         @draw="draw"
@@ -72,16 +45,11 @@ import {
 } from "@/stores/blackbox";
 import CanvasComponent from "@/components/CanvasComponent.vue";
 import { useTimelineStore } from "@/stores/timeline";
-import { useRenderStore } from "@/stores/render";
 import { Analysis } from "@/analysis";
-import { Color, Render } from "@/analysis/render";
+import { monoFont, Render } from "@/analysis/render";
+import { seriesColor, useChartTheme } from "@/ui/useChartTheme";
 
 const ROVER_MODE_LABELS = ["Manual", "Rate Assist", "Rate Throttle"];
-const ROVER_MODE_COLORS = [
-  "hsla(0, 0%, 100%, 0.03)",
-  "hsla(48, 100%, 67%, 0.12)",
-  "hsla(171, 100%, 41%, 0.12)",
-];
 
 export default defineComponent({
   name: "TimeGraphComponent",
@@ -98,9 +66,9 @@ export default defineComponent({
   },
   setup() {
     return {
-      render: useRenderStore(),
       bb: useBlackboxStore(),
       tl: useTimelineStore(),
+      theme: useChartTheme(),
     };
   },
   data() {
@@ -118,6 +86,26 @@ export default defineComponent({
     };
   },
   computed: {
+    contextMenuItems() {
+      return [
+        {
+          label: "Start here",
+          action: () => (this.bb.start = this.tl.windowHoverIndex),
+        },
+        {
+          label: "End here",
+          action: () => (this.bb.end = this.tl.windowHoverIndex),
+        },
+        {
+          label: "Start cut here",
+          action: () => this.bb.cutEntries(this.tl.windowHoverIndex),
+        },
+        {
+          label: "End cut here",
+          action: () => this.bb.cutEntries(0, this.tl.windowHoverIndex),
+        },
+      ];
+    },
     canvas() {
       return this.$refs.canvas as HTMLCanvasElement;
     },
@@ -142,7 +130,7 @@ export default defineComponent({
           };
         })
         .filter(
-          (field: any) => this.bb.entries[blackboxFieldIDToString(field.id)]
+          (field: any) => this.bb.entries[blackboxFieldIDToString(field.id)],
         );
     },
     graphValues() {
@@ -187,7 +175,7 @@ export default defineComponent({
           const val = values[i] * mul;
           path.lineTo(
             xOffset + i * tickWidth,
-            val * -1 * halfHeight + halfHeight
+            val * -1 * halfHeight + halfHeight,
           );
         }
         return path;
@@ -206,7 +194,7 @@ export default defineComponent({
       const start = Math.max(Math.floor(this.tl.windowOffset), 0);
       const end = Math.min(
         Math.ceil(this.tl.windowOffset + this.tl.windowSize),
-        modeEntry.length
+        modeEntry.length,
       );
       if (end <= start) {
         return [];
@@ -217,7 +205,6 @@ export default defineComponent({
         label: string;
         x: number;
         width: number;
-        color: string;
         transition: boolean;
       }[];
       let mode = Math.round(modeEntry[start]);
@@ -230,7 +217,6 @@ export default defineComponent({
           label: ROVER_MODE_LABELS[mode] || `Mode ${mode}`,
           x,
           width,
-          color: ROVER_MODE_COLORS[mode] || ROVER_MODE_COLORS[0],
           transition,
         });
       };
@@ -255,7 +241,7 @@ export default defineComponent({
 
       const index = Math.min(
         Math.max(Math.round(this.tl.windowHoverIndex), 0),
-        time.length - 1
+        time.length - 1,
       );
       return `Time ${formatDuration((time[index] - time[0]) / 1000)}`;
     },
@@ -275,11 +261,11 @@ export default defineComponent({
           }
           const lower = Math.min(
             Math.max(hoverIndexLower, 0),
-            values.length - 1
+            values.length - 1,
           );
           const upper = Math.min(
             Math.max(hoverIndexUpper, 0),
-            values.length - 1
+            values.length - 1,
           );
           const valUpper = values[upper];
           const valLower = values[lower];
@@ -317,7 +303,7 @@ export default defineComponent({
     mousemove(e: MouseEvent) {
       if (this.drag) {
         this.tl.moveCursor(
-          e.movementX / this.tl.windowPixelsPerMS(this.canvas.width)
+          e.movementX / this.tl.windowPixelsPerMS(this.canvas.width),
         );
       }
       if (this.select) {
@@ -357,7 +343,7 @@ export default defineComponent({
 
       this.tl.modifyZoom(e.deltaY / 500);
       this.tl.moveCursor(
-        e.deltaX / this.tl.windowPixelsPerMS(this.canvas.width)
+        e.deltaX / this.tl.windowPixelsPerMS(this.canvas.width),
       );
     },
     context(e: PointerEvent) {
@@ -370,17 +356,22 @@ export default defineComponent({
         return;
       }
 
+      const theme = this.theme;
       ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
       if (this.roverModeBands.length) {
-        ctx.font = "12px Roboto Mono";
+        ctx.font = monoFont(12);
         ctx.textAlign = "left";
         for (const band of this.roverModeBands) {
-          ctx.fillStyle = band.color;
-          ctx.fillRect(band.x, 0, band.width, this.canvas.height);
+          // Manual (mode 0) is the baseline and stays unshaded.
+          const fill = theme.bands[band.mode - 1];
+          if (fill) {
+            ctx.fillStyle = fill;
+            ctx.fillRect(band.x, 0, band.width, this.canvas.height);
+          }
 
           if (band.transition) {
-            ctx.strokeStyle = Color.GRAY_LIGTHER;
+            ctx.strokeStyle = theme.text;
             ctx.beginPath();
             ctx.moveTo(band.x, 0);
             ctx.lineTo(band.x, this.canvas.height);
@@ -388,13 +379,13 @@ export default defineComponent({
           }
 
           if (band.width > 80) {
-            ctx.fillStyle = Color.GRAY_LIGTHER;
+            ctx.fillStyle = theme.text;
             ctx.fillText(band.label, band.x + 6, 16);
           }
         }
       }
 
-      ctx.strokeStyle = Color.GRAY_LIGTH;
+      ctx.strokeStyle = theme.grid;
       ctx.beginPath();
       const divs = 6;
       for (let i = 0; i <= divs; i++) {
@@ -404,13 +395,13 @@ export default defineComponent({
       ctx.stroke();
 
       for (const [index, path] of this.graphPaths.entries()) {
-        ctx.strokeStyle = this.render.colors[index];
+        ctx.strokeStyle = seriesColor(theme, index);
         ctx.stroke(path);
       }
 
       if (this.select) {
-        ctx.fillStyle = "hsla(0, 0%, 29%, 0.4)";
-        ctx.strokeStyle = Color.GRAY_LIGTHER;
+        ctx.fillStyle = theme.selection;
+        ctx.strokeStyle = theme.text;
         ctx.beginPath();
         ctx.moveTo(this.selectStart, this.canvas.height);
         ctx.lineTo(this.selectEnd, this.canvas.height);
@@ -423,19 +414,19 @@ export default defineComponent({
         const selectionWidth = Math.abs(this.selectEnd - this.selectStart);
         const selectionDuration =
           selectionWidth / this.tl.windowPixelsPerMS(this.canvas.width);
-        ctx.font = "14px Roboto Mono";
+        ctx.font = monoFont(13);
         ctx.textAlign = "center";
-        ctx.fillStyle = Color.GREEN;
+        ctx.fillStyle = theme.accent;
         ctx.fillText(
           formatDuration(selectionDuration),
           (this.selectStart + this.selectEnd) / 2,
-          22
+          22,
         );
       }
 
       if (this.bb.start >= this.tl.windowOffset) {
         const pos = (this.bb.start - this.tl.windowOffset) * this.tickWidth;
-        ctx.strokeStyle = Color.RED;
+        ctx.strokeStyle = theme.danger;
         ctx.beginPath();
         ctx.moveTo(pos, 0);
         ctx.lineTo(pos, this.canvas.height);
@@ -444,7 +435,7 @@ export default defineComponent({
 
       if (this.bb.end >= this.tl.windowOffset) {
         const pos = (this.bb.end - this.tl.windowOffset) * this.tickWidth;
-        ctx.strokeStyle = Color.RED;
+        ctx.strokeStyle = theme.danger;
         ctx.beginPath();
         ctx.moveTo(pos, 0);
         ctx.lineTo(pos, this.canvas.height);
@@ -453,32 +444,22 @@ export default defineComponent({
 
       const hoverPos = this.tl.windowHoverPos(this.canvas.width);
 
-      const lines = [
-        { text: this.hoverTimeLabel, color: Color.GREEN as string },
-      ];
+      const lines = [{ text: this.hoverTimeLabel, color: theme.accent }];
       for (const [index, val] of this.hoverValues.entries()) {
         lines.push({
           text: val,
-          color: this.render.colors[index],
+          color: seriesColor(theme, index),
         });
       }
       Render.hoverText(
         ctx,
+        theme,
         hoverPos,
         this.canvas.width,
         this.canvas.height,
-        lines
+        lines,
       );
     },
   },
 });
 </script>
-
-<style lang="scss" scoped>
-.timeline-graph {
-  height: 300px;
-}
-.context-menu {
-  position: fixed;
-}
-</style>

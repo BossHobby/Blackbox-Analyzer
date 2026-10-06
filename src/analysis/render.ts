@@ -1,26 +1,22 @@
-export enum Color {
-  GREEN = "hsl(96deg 53% 43%)",
-  GREEN_LIGHT = "hsl(96deg 53% 48%)",
-  GREEN_DARK = "hsl(96deg 53% 40%)",
-  GRAY = "hsl(0, 0%, 19%)",
-  GRAY_LIGTH = "hsl(0, 0%, 29%)",
-  GRAY_LIGTHER = "hsl(0, 0%, 73%)",
-  GRAY_DARKER = "hsl(0, 0%, 16%)",
-  GRAY_DARKEST = "hsl(0, 0%, 3%)",
-  WHITE = "rgb(255, 255, 255)",
-  WHITE_OFF = "rgb(233, 235, 252)",
-  RED = "hsl(359deg 92% 45%)",
+import type { ChartTheme } from "@/ui/useChartTheme";
+
+export const MONO_FONT =
+  'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace';
+
+export function monoFont(size: number) {
+  return `${size}px ${MONO_FONT}`;
 }
 
 export class Render {
   public static hoverText(
     ctx: CanvasRenderingContext2D,
+    theme: ChartTheme,
     pos: number,
     width: number,
     height: number,
-    lines: any[]
+    lines: { text: string; color: string }[],
   ) {
-    ctx.font = "14px Roboto Mono";
+    ctx.font = monoFont(13);
 
     let hoverTextPos = 0;
     if (pos > width / 2) {
@@ -36,7 +32,7 @@ export class Render {
       ctx.fillText(line.text, hoverTextPos, (index + 1) * 20);
     }
 
-    ctx.strokeStyle = Color.GREEN;
+    ctx.strokeStyle = theme.accent;
     ctx.beginPath();
     ctx.moveTo(pos, 0);
     ctx.lineTo(pos, height);

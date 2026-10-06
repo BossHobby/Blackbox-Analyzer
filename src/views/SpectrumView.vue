@@ -1,132 +1,27 @@
 <template>
   <EmptyState v-if="!bb.isLoaded" />
   <template v-else>
-    <div class="analysis-summary mx-4 mb-4">
-      <div class="summary-primary">
-        <span class="summary-title">Spectrum</span>
-        <span>{{ bb.profileName || bb.filename }}</span>
-        <span>{{ bb.sampleFrequency.toFixed(0) }} Hz sample rate</span>
-        <span>{{ bb.entryCount }} samples</span>
-        <span>{{ formatDuration(bb.duration) }}</span>
-        <span v-if="bb.hasSelection">
-          Selected {{ bb.selectedEntryCount }} samples ·
-          {{ formatDuration(bb.selectedDuration) }}
-        </span>
-      </div>
-      <div v-if="bb.profileSummaryTags.length" class="summary-profile">
-        <span
-          v-for="tag in bb.profileSummaryTags"
-          :key="'profile-tag-' + tag"
-          class="summary-chip"
-        >
-          {{ tag }}
-        </span>
-      </div>
-    </div>
-
-    <div>
-      <SpectrumGraphComponent
+    <LogSummary />
+    <div class="mt-3 flex min-w-0 flex-col gap-3">
+      <template
         v-for="(fields, index) in sp.graphFields"
-        v-show="fields.length"
         :key="'spectrum-' + index"
-        :fields="fields"
-        :graph-index="index"
-      />
-      <div v-if="!hasVisibleGraphs" class="notification is-warning mx-4">
-        No valid spectrum fields are selected. Add fields in the sidebar or
-        apply the default preset.
-      </div>
-    </div>
-
-    <div class="sidebar" :class="{ 'is-visible': render.sidebar }">
-      <button class="button is-primary mt-4" @click="sp.addGraph()">
-        <font-awesome-icon icon="fa-solid fa-plus" size="lg" fixed-width />
-        Graph
-      </button>
-      <button
-        class="button is-light mt-4 ml-2"
-        @click="sp.applyDefaultGraphs(bb.isRoverLog)"
       >
-        {{ bb.vehicleLabel ? bb.vehicleLabel + " Preset" : "Default Preset" }}
-      </button>
-
-      <div
-        v-for="(graph, graphIndex) in sp.graphs"
-        :key="'graph-config-' + graphIndex"
-        class="mt-4"
-      >
-        <h4 class="subtitle is-4 mb-2">
-          Graph {{ graphIndex + 1 }}
-          <button
-            class="delete mt-1"
-            @click="sp.removeGraph(graphIndex)"
-          ></button>
-        </h4>
-        <input
-          class="input is-small mb-3"
-          type="text"
-          placeholder="Graph title"
-          v-model="sp.graphs[graphIndex].title"
-        />
-
-        <div
-          v-for="(field, fieldIndex) in graph.fields"
-          :key="'field-' + graphIndex + '-' + fieldIndex"
-          class="mb-2"
+        <GraphCard
+          v-if="fields.length"
+          :title="sp.graphs[index].title || `Graph ${index + 1}`"
         >
-          <div class="field has-addons">
-            <div class="control">
-              <div class="select">
-                <select v-model="sp.graphs[graphIndex].fields[fieldIndex].id">
-                  <option :value="undefined">Select source...</option>
-                  <template
-                    v-for="(opt, index) in bb.fieldOptions"
-                    :key="'field-optgtp-' + index"
-                  >
-                    <optgroup :label="opt[0]?.groupTitle || 'Fields'">
-                      <option
-                        v-for="o in opt.filter((o: any) => !o.group)"
-                        :key="'field-opt-' + o.id.name + '-' + o.id.index"
-                        :value="o.id"
-                      >
-                        {{ o.title }}
-                      </option>
-                      <option v-if="opt.length == 0" :value="opt.id">
-                        {{ opt.title }}
-                      </option>
-                    </optgroup>
-                  </template>
-                </select>
-              </div>
-            </div>
-            <div class="control">
-              <a
-                class="button is-danger"
-                @click="sp.graphs[graphIndex].fields.splice(fieldIndex, 1)"
-              >
-                <font-awesome-icon
-                  icon="fa-solid fa-xmark"
-                  size="lg"
-                  fixed-width
-                />
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <div class="field has-addons">
-          <div class="control">
-            <button class="button is-primary" @click="sp.addField(graphIndex)">
-              <font-awesome-icon
-                icon="fa-solid fa-plus"
-                size="lg"
-                fixed-width
-              />
-              Field
-            </button>
-          </div>
-        </div>
-      </div>
+          <SpectrumGraphComponent :fields="fields" :graph-index="index" />
+        </GraphCard>
+      </template>
+      <p
+        v-if="!hasVisibleGraphs"
+        role="status"
+        class="flex items-start gap-2 rounded-lg border border-warning bg-panel p-4 text-sm text-warning"
+      >
+        <Icon name="warning" />No valid spectrum fields are selected. Add fields
+        in the graph settings or apply the default preset.
+      </p>
     </div>
   </template>
 </template>
@@ -134,44 +29,46 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 
-import { useRenderStore } from "@/stores/render";
 import { useSpectrumStore } from "@/stores/spectrum";
+import { useBlackboxStore } from "@/stores/blackbox";
 
+import GraphCard from "@/components/GraphCard.vue";
+import Icon from "@/components/ui/Icon.vue";
 import SpectrumGraphComponent from "@/components/SpectrumGraphComponent.vue";
-import { formatDuration, useBlackboxStore } from "@/stores/blackbox";
 import EmptyState from "@/components/EmptyState.vue";
+import LogSummary from "@/components/LogSummary.vue";
 
 export default defineComponent({
   name: "SpectrumView",
   components: {
+    GraphCard,
+    Icon,
     SpectrumGraphComponent,
     EmptyState,
+    LogSummary,
   },
   setup() {
     return {
-      render: useRenderStore(),
       sp: useSpectrumStore(),
       bb: useBlackboxStore(),
-      formatDuration,
     };
-  },
-  data() {
-    return {};
-  },
-  watch: {
-    "sp.graphs": {
-      handler(newValue) {
-        localStorage.setItem("spectrum-graphs", JSON.stringify(newValue));
-      },
-      deep: true,
-    },
   },
   computed: {
     hasVisibleGraphs() {
       return this.sp.graphFields.some((fields) => fields.length);
     },
   },
+  watch: {
+    "sp.graphs": {
+      handler(newValue) {
+        try {
+          localStorage.setItem("spectrum-graphs", JSON.stringify(newValue));
+        } catch {
+          /* Graphs still work without persistence. */
+        }
+      },
+      deep: true,
+    },
+  },
 });
 </script>
-
-<style lang="scss" scoped></style>

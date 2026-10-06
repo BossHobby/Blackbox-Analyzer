@@ -1,39 +1,35 @@
 <template>
   <section
-    class="empty-state hero is-primary"
-    :class="{ 'is-dragging': dragActive }"
+    class="mx-auto mt-4 max-w-3xl rounded-lg border bg-panel p-6 transition-colors sm:p-8"
+    :class="dragActive ? 'border-dashed border-accent' : 'border-line'"
+    aria-labelledby="empty-state-title"
     @dragenter.prevent="dragActive = true"
     @dragover.prevent="dragActive = true"
     @dragleave.prevent="dragActive = false"
     @drop.prevent="dropFile"
   >
-    <div class="hero-body">
-      <div class="empty-state-content">
-        <div class="empty-state-mark">
-          <img src="/logo-header.svg" alt="" class="empty-state-logo" />
-        </div>
-        <div class="empty-state-copy">
-          <p class="title is-3 is-spaced mb-2">{{ title }}</p>
-          <p class="subtitle is-5 mb-4 empty-state-subtitle">
-            {{ subtitle }}
-          </p>
-          <div
-            v-if="bb.loadState == LoadState.ERROR"
-            class="notification is-danger"
-          >
-            {{ bb.loadError }}
-          </div>
-          <spinner-btn
-            class="button is-primary is-light"
-            :disabled="bb.loadState == LoadState.LOADING"
+    <div class="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
+      <img src="/logo-header.svg" alt="" class="size-24 shrink-0 sm:size-28" />
+      <div class="min-w-0">
+        <h2 id="empty-state-title" class="text-lg font-semibold">
+          {{ title }}
+        </h2>
+        <p class="mt-1 max-w-prose text-sm text-muted">{{ subtitle }}</p>
+        <p
+          v-if="bb.loadState == LoadState.ERROR"
+          role="alert"
+          class="mt-4 flex items-start gap-2 rounded-md border border-danger px-3 py-2 text-sm text-danger"
+        >
+          <Icon name="warning" />{{ bb.loadError }}
+        </p>
+        <div class="mt-5 flex flex-wrap items-center gap-3">
+          <UiButton
+            variant="primary"
+            :busy="bb.loadState == LoadState.LOADING"
             @click="bb.loadBlackbox()"
-          >
-            {{
-              bb.loadState == LoadState.LOADING
-                ? "Loading..."
-                : "Load blackbox file"
-            }}
-          </spinner-btn>
+            ><Icon v-if="bb.loadState != LoadState.LOADING" name="upload" />Load
+            blackbox file</UiButton
+          ><span class="text-xs text-muted">or drop a .json log here</span>
         </div>
       </div>
     </div>
@@ -42,13 +38,15 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
-import SpinnerBtn from "@/components/SpinnerBtn.vue";
+import UiButton from "@/components/ui/Button.vue";
+import Icon from "@/components/ui/Icon.vue";
 import { BlackboxLoadState, useBlackboxStore } from "@/stores/blackbox";
 
 export default defineComponent({
   name: "EmptyState",
   components: {
-    SpinnerBtn,
+    UiButton,
+    Icon,
   },
   setup() {
     return {
@@ -95,67 +93,3 @@ export default defineComponent({
   },
 });
 </script>
-
-<style lang="scss" scoped>
-.empty-state {
-  border-radius: 0.5rem;
-  box-shadow: 0 0.5em 1em -0.125em rgb(3 3 3 / 35%);
-  margin: 2rem auto;
-  max-width: 920px;
-  outline: 2px solid transparent;
-  outline-offset: 0;
-  transition: outline-color 120ms ease, transform 120ms ease;
-}
-
-.empty-state.is-dragging {
-  outline-color: rgb(233 235 252 / 80%);
-  transform: translateY(-1px);
-}
-
-.empty-state :deep(.hero-body) {
-  padding: 2rem;
-}
-
-.empty-state-content {
-  align-items: center;
-  display: flex;
-  gap: 1.5rem;
-}
-
-.empty-state-mark {
-  flex: 0 0 7rem;
-}
-
-.empty-state-copy {
-  min-width: 0;
-}
-
-.empty-state-logo {
-  display: block;
-  margin: 0 auto;
-  max-width: 8rem;
-  width: 100%;
-}
-
-.empty-state-subtitle {
-  line-height: 1.35;
-  margin-top: 0 !important;
-  max-width: 34rem;
-}
-
-@media screen and (max-width: 768px) {
-  .empty-state-content {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .empty-state-mark {
-    flex-basis: auto;
-  }
-
-  .empty-state-logo {
-    margin: 0;
-    max-width: 6rem;
-  }
-}
-</style>
