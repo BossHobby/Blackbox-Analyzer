@@ -9,6 +9,7 @@ import {
   buildProfileSummaryTags,
   cleanString,
   isDynamicNotchProfileLog,
+  isNavigationDebugProfileLog,
   isRoverDebugProfileLog,
   isRoverProfileLog,
   profileFilterCutoffs,
@@ -136,6 +137,12 @@ export const useBlackboxStore = defineStore("blackbox", {
     },
     isRoverLog(state) {
       return isRoverProfileLog(state.profile);
+    },
+    isNavigationDebugLog(state) {
+      return isNavigationDebugProfileLog(state.profile);
+    },
+    hasGps(state) {
+      return !!state.summary?.track;
     },
     isDynamicNotchLog(state) {
       return isDynamicNotchProfileLog(state.profile);

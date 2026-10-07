@@ -609,3 +609,7 @@ export function pidGainsLabel(profile: any, axis: number) {
     ? `P ${gains[0]} · I ${gains[1]} · D ${gains[2]}`
     : undefined;
 }
+
+export function isNavigationDebugProfileLog(profile: any) {
+  return hasDebugFlag(profile, NAVIGATION_DEBUG_FLAG);
+}

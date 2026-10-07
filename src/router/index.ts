@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router";
 
 import OverviewView from "../views/OverviewView.vue";
 import TuneView from "../views/TuneView.vue";
+import NavigationView from "../views/NavigationView.vue";
 import TimelineView from "../views/TimelineView.vue";
 import SpectrumView from "../views/SpectrumView.vue";
 
@@ -31,6 +32,15 @@ const router = createRouter({
       meta: {
         title: "Tune",
         description: "Step response and noise spectrogram.",
+      },
+    },
+    {
+      path: "/navigation",
+      name: "navigation",
+      component: NavigationView,
+      meta: {
+        title: "Navigation",
+        description: "GPS track, RTH phases and navigation loop.",
       },
     },
     {
