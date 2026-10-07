@@ -5,7 +5,7 @@ const KEY = "last";
 
 export interface StoredLog {
   name: string;
-  text: string;
+  blob: Blob;
 }
 
 function openDb() {
@@ -43,9 +43,12 @@ export async function saveLastLog(log: StoredLog) {
 
 export async function readLastLog() {
   try {
-    return await run<StoredLog | undefined>("readonly", (store) =>
-      store.get(KEY),
-    );
+    const log = await run<any>("readonly", (store) => store.get(KEY));
+    // Entries written before logs were stored as blobs carry the raw text.
+    if (log && typeof log.text == "string") {
+      return { name: log.name, blob: new Blob([log.text]) } as StoredLog;
+    }
+    return log as StoredLog | undefined;
   } catch (err) {
     console.warn("could not read last log", err);
     return undefined;

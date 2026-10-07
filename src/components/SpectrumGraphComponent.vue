@@ -195,8 +195,12 @@ export default defineComponent({
 
       return this.spectrumFields
         .map((field) => this.bb.entries[blackboxFieldIDToString(field.id)])
-        .filter((entry): entry is Float32Array => entry != undefined)
-        .map((entry) => entry.slice(this.bb.start, this.bb.start + size));
+        .filter((entry) => entry != undefined)
+        .map((entry) =>
+          Float32Array.from(
+            entry.subarray(this.bb.start, this.bb.start + size),
+          ),
+        );
     },
     spectrumDataDecimated() {
       return this.spectrumData.power.map((power) =>
@@ -236,9 +240,9 @@ export default defineComponent({
       }
       const hoverIndex = (this.sp.hoverPos - this.paddingLeft) / tickWidth;
       const hoverIndexLower = Math.floor(hoverIndex);
-      const hoverWeigthLower = hoverIndex - hoverIndexLower;
       const hoverIndexUpper = Math.ceil(hoverIndex);
-      const hoverWeigthUpper = 1 - hoverWeigthLower;
+      const hoverWeigthUpper = hoverIndex - hoverIndexLower;
+      const hoverWeigthLower = 1 - hoverWeigthUpper;
 
       let maxLen = 0;
       return this.spectrumFields

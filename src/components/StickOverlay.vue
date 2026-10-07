@@ -31,9 +31,9 @@ export default defineComponent({
     rxValues() {
       const hoverIndex = this.tl.windowHoverIndex;
       const hoverIndexLower = Math.floor(hoverIndex);
-      const hoverWeigthLower = hoverIndex - hoverIndexLower;
       const hoverIndexUpper = Math.ceil(hoverIndex);
-      const hoverWeigthUpper = 1 - hoverWeigthLower;
+      const hoverWeigthUpper = hoverIndex - hoverIndexLower;
+      const hoverWeigthLower = 1 - hoverWeigthUpper;
 
       const res = [];
 

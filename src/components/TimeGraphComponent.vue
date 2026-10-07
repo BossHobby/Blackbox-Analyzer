@@ -38,7 +38,9 @@
 import { defineComponent } from "vue";
 import {
   blackboxFieldIDToString,
+  formatBlackboxValue,
   formatDuration,
+  isDiscreteField,
   transformBlackbox,
   unitBlackbox,
   useBlackboxStore,
@@ -136,7 +138,9 @@ export default defineComponent({
     graphValues() {
       const fields = this.graphFields.map((field) => {
         const entry = this.bb.entries[blackboxFieldIDToString(field.id)];
-        const raw = entry.slice(0).map((val) => transformBlackbox(field, val));
+        const raw = Float32Array.from(entry, (val) =>
+          transformBlackbox(field, val),
+        );
 
         return {
           ...field,
@@ -248,36 +252,32 @@ export default defineComponent({
     hoverValues() {
       const hoverIndex = this.tl.windowHoverIndex;
       const hoverIndexLower = Math.floor(hoverIndex);
-      const hoverWeigthLower = hoverIndex - hoverIndexLower;
       const hoverIndexUpper = Math.ceil(hoverIndex);
-      const hoverWeigthUpper = 1 - hoverWeigthLower;
+      const hoverWeigthUpper = hoverIndex - hoverIndexLower;
+      const hoverWeigthLower = 1 - hoverWeigthUpper;
 
       let maxLen = 0;
       return this.graphFields
-        .map((field, fieldIndex) => {
-          const values = this.graphValues[fieldIndex].values;
-          if (!values.length) {
+        .map((field) => {
+          // Read the raw column so expo shaping does not distort the readout.
+          const values = this.bb.entries[blackboxFieldIDToString(field.id)];
+          if (!values?.length) {
             return { field, str: "" };
           }
-          const lower = Math.min(
-            Math.max(hoverIndexLower, 0),
-            values.length - 1,
-          );
-          const upper = Math.min(
-            Math.max(hoverIndexUpper, 0),
-            values.length - 1,
-          );
-          const valUpper = values[upper];
-          const valLower = values[lower];
-          const val = valUpper * hoverWeigthUpper + valLower * hoverWeigthLower;
-          const str = val.toFixed(2).toString();
+          const clamp = (index: number) =>
+            Math.min(Math.max(index, 0), values.length - 1);
+          const val = isDiscreteField(field)
+            ? values[clamp(Math.round(hoverIndex))]
+            : values[clamp(hoverIndexUpper)] * hoverWeigthUpper +
+              values[clamp(hoverIndexLower)] * hoverWeigthLower;
+          const str = formatBlackboxValue(field, val);
           maxLen = Math.max(maxLen, str.length);
           return { field, str };
         })
         .map(({ field, str }) => {
           const unit = unitBlackbox(field);
           while (str.length < maxLen) str = " " + str;
-          return field.title + " " + str + " " + unit;
+          return `${field.title} ${str} ${unit}`.trimEnd();
         });
     },
   },
