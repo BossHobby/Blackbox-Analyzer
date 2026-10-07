@@ -109,7 +109,11 @@
 
     <Panel
       title="Rate tracking"
-      description="Gyro against setpoint for the whole log."
+      :description="
+        summary.axes.some((axis) => axis.rmsError != undefined)
+          ? 'Gyro against setpoint for the whole log.'
+          : 'Gyro against setpoint. Tracking error needs the vehicle debug mode to leave out Manual flight.'
+      "
     >
       <table class="w-full text-left text-sm tabular-nums">
         <thead class="text-xs text-muted">

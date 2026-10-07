@@ -1,4 +1,9 @@
-import { profileVehicleLabel, rateMaxForAxis } from "./profile";
+import {
+  isRoverDebugProfileLog,
+  isWingDebugProfileLog,
+  profileVehicleLabel,
+  rateMaxForAxis,
+} from "./profile";
 import {
   blackboxFieldIDToString,
   transformBlackbox,
@@ -12,7 +17,9 @@ import {
 const SATURATION_LEVEL = 0.99;
 const SATURATION_MIN_MS = 20;
 const TRACKING_ERROR_DEG_S = 150;
-const TRACKING_MIN_MS = 10;
+// Normal control lag after a sharp setpoint step (stick flick, RTH engaging)
+// lasts about the loop delay, 10-17 ms on the logs checked.
+const TRACKING_MIN_MS = 20;
 const EVENT_MERGE_MS = 50;
 const GAP_EVENT_FRAMES = 10;
 const MAX_EVENTS_PER_KIND = 40;
@@ -23,6 +30,7 @@ const TRACK_POINTS = 2000;
 const METERS_PER_DEGREE = (6371000 * Math.PI) / 180;
 
 const RTH_FAILURE_STATES = new Set([6, 7, 8]);
+const RTH_HOVER_HOME = 5;
 const AXIS_NAMES = ["Roll", "Pitch", "Yaw"];
 const ROVER_AXIS_NAMES = ["Roll", "Pitch", "Steering"];
 
@@ -79,6 +87,34 @@ export interface LogSummary {
 }
 
 type Run = { start: number; end: number; peak: number };
+
+export interface ClosedLoop {
+  // 1 where the controller tracks setpoint; undefined when every frame does.
+  mask?: Uint8Array;
+  // False when the log cannot tell manual (open-loop) flight apart.
+  known: boolean;
+}
+
+/**
+ * Frames where gyro is expected to follow setpoint. Wing and rover Manual
+ * modes pass the sticks straight to the outputs, so tracking metrics there
+ * are meaningless; their mode is only known with the vehicle debug mode.
+ */
+export function closedLoopFrames(entries: LogColumns, profile: any): ClosedLoop {
+  const vehicle = profileVehicleLabel(profile);
+  if (vehicle == "Multirotor" || !vehicle) {
+    return { known: true };
+  }
+  const mode =
+    vehicle == "Rover"
+      ? isRoverDebugProfileLog(profile) && column(entries, "rover_debug", 0)
+      : isWingDebugProfileLog(profile) && column(entries, "debug", 0);
+  if (!mode) {
+    return { known: false };
+  }
+  // Mode 0 is Manual for both the rover and the wing.
+  return { mask: Uint8Array.from(mode, (v) => (v != 0 ? 1 : 0)), known: true };
+}
 
 function axisDef(fields: BlackboxFieldDef[], name: string, index?: number) {
   const field = fields.find((f) => f.name == name);
@@ -161,6 +197,7 @@ function summarizeAxes(
   profile: any,
   axes: number[],
   axisNames: string[],
+  closedLoop: ClosedLoop,
 ): AxisSummary[] {
   return axes.map((axis) => {
     const name = axisNames[axis];
@@ -181,16 +218,21 @@ function summarizeAxes(
       peakRate,
       maxRate: rateMaxForAxis(profile, axis),
     };
-    if (error?.length && errorDef) {
+    if (error?.length && errorDef && closedLoop.known) {
       let sum = 0;
+      let count = 0;
       let peak = 0;
-      for (const raw of error) {
-        const v = transformBlackbox(errorDef, raw);
+      for (let i = 0; i < error.length; i++) {
+        if (closedLoop.mask && !closedLoop.mask[i]) continue;
+        const v = transformBlackbox(errorDef, error[i]);
         sum += v * v;
+        count++;
         peak = Math.max(peak, Math.abs(v));
       }
-      summary.rmsError = Math.sqrt(sum / error.length);
-      summary.peakError = peak;
+      if (count) {
+        summary.rmsError = Math.sqrt(sum / count);
+        summary.peakError = peak;
+      }
     }
     return summary;
   });
@@ -256,6 +298,7 @@ export function summarizeLog(
   // Rovers only close the loop on steering.
   const axes = isRover ? [2] : [0, 1, 2];
   const axisNames = isRover ? ROVER_AXIS_NAMES : AXIS_NAMES;
+  const closedLoop = closedLoopFrames(entries, profile);
   const msFrames = (ms: number) => Math.max(Math.round(ms * framesPerMs), 1);
   const events: LogEvent[] = [];
 
@@ -297,7 +340,7 @@ export function summarizeLog(
   const summary: LogSummary = {
     frames,
     filledFrames,
-    axes: summarizeAxes(fields, entries, profile, axes, axisNames),
+    axes: summarizeAxes(fields, entries, profile, axes, axisNames, closedLoop),
     strip,
     events,
     hiddenEvents: 0,
@@ -376,16 +419,14 @@ export function summarizeLog(
     }
   }
 
-  // Rover Manual mode passes the stick straight through; nothing tracks.
-  const roverMode = isRover ? column(entries, "rover_debug", 0) : undefined;
-  for (const axis of axes) {
+  for (const axis of closedLoop.known ? axes : []) {
     const error = column(entries, "setpoint_error", axis);
     const errorDef = axisDef(fields, "setpoint", axis);
     if (!error || !errorDef) {
       continue;
     }
     const over = (i: number) => {
-      if (roverMode && roverMode[i] == 0) {
+      if (closedLoop.mask && !closedLoop.mask[i]) {
         return undefined;
       }
       const v = Math.abs(transformBlackbox(errorDef, error[i]));
@@ -426,13 +467,24 @@ export function summarizeLog(
           visited.push(rth[i]);
         }
       }
-      const final = visited[visited.length - 1];
+      // RTH usually ends because the pilot switches it off, so the last
+      // phase is where it stopped, not an outcome.
+      const failure = visited.find((s) => RTH_FAILURE_STATES.has(s));
+      const last = names[visited[visited.length - 1]] ?? visited[visited.length - 1];
+      const label =
+        failure != undefined
+          ? `RTH failed: ${names[failure] ?? failure}`
+          : run.end >= frames - 1
+            ? `RTH active until log end (${last})`
+            : visited.includes(RTH_HOVER_HOME)
+              ? "RTH reached home"
+              : `RTH stopped during ${last}`;
       events.push({
         kind: "rth",
-        severity: RTH_FAILURE_STATES.has(final) ? "critical" : "info",
+        severity: failure != undefined ? "critical" : "info",
         start: run.start,
         end: run.end,
-        label: `RTH ended in ${names[final] ?? final}`,
+        label,
         detail: visited.map((s) => names[s] ?? `${s}`).join(" → "),
       });
     }

@@ -42,6 +42,8 @@ export class Analysis {
     minInput: number,
     input: Float32Array,
     output: Float32Array,
+    // 1 where the controller tracks setpoint; empty when all frames do.
+    closedLoop = new Uint8Array(),
   ): Promise<StepResponse> {
     return analysisWorker({
       op: "step",
@@ -49,6 +51,7 @@ export class Analysis {
       minInput,
       input,
       output,
+      closedLoop,
     });
   }
 

@@ -64,12 +64,15 @@ fn quantile(sorted: &[f32], q: f32) -> f32 {
     sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo as f32)
 }
 
+/// `closed_loop` marks frames where the controller tracks setpoint (empty:
+/// all of them); windows touching any open-loop frame are skipped.
 pub fn step_response(
     planner: &mut RealFftPlanner<f32>,
     sample_freq: f32,
     min_input: f32,
     input: &[f32],
     output: &[f32],
+    closed_loop: &[u8],
 ) -> StepResult {
     let frame_len = (sample_freq * STEP_FRAME_S) as usize;
     let response_len = (sample_freq * STEP_RESPONSE_S) as usize;
@@ -109,10 +112,14 @@ pub fn step_response(
     while start + frame_len <= len {
         let sp = &input[start..start + frame_len];
         let gy = &output[start..start + frame_len];
+        let open_loop = !closed_loop.is_empty()
+            && closed_loop[start..(start + frame_len).min(closed_loop.len())]
+                .iter()
+                .any(|v| *v == 0);
         start += hop;
         result.candidates += 1;
 
-        if !sp.iter().any(|v| v.abs() >= min_input) {
+        if open_loop || !sp.iter().any(|v| v.abs() >= min_input) {
             continue;
         }
         // Crashes and hard hits move the gyro far more than the stick asked
@@ -344,15 +351,23 @@ impl Analysis {
 
     /// Averaged step response of `output` (gyro) to `input` (setpoint) over
     /// the first 500 ms. Windows whose setpoint never exceeds `min_input` carry
-    /// no information and are skipped.
+    /// no information and are skipped, as are windows with open-loop frames.
     pub fn step_response(
         &mut self,
         sample_freq: f32,
         min_input: f32,
         input: &[f32],
         output: &[f32],
+        closed_loop: &[u8],
     ) -> JsValue {
-        let result = step_response(&mut self.planner, sample_freq, min_input, input, output);
+        let result = step_response(
+            &mut self.planner,
+            sample_freq,
+            min_input,
+            input,
+            output,
+            closed_loop,
+        );
         serde_wasm_bindgen::to_value(&result).unwrap()
     }
 
@@ -462,7 +477,7 @@ mod tests {
         }
 
         let mut planner = RealFftPlanner::<f32>::new();
-        let result = step_response(&mut planner, FS, 20.0, &setpoint, &gyro);
+        let result = step_response(&mut planner, FS, 20.0, &setpoint, &gyro, &[]);
         assert!(result.windows > 50, "windows {}", result.windows);
 
         let expected = |t: usize| {

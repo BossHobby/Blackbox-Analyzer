@@ -191,7 +191,7 @@ export function isRoverProfileLog(profile: any) {
   return !!profile?.rover || isRoverDebugProfileLog(profile);
 }
 
-function isWingProfileLog(profile: any) {
+export function isWingProfileLog(profile: any) {
   return !!profile?.wing && !isRoverProfileLog(profile);
 }
 
@@ -612,4 +612,8 @@ export function pidGainsLabel(profile: any, axis: number) {
 
 export function isNavigationDebugProfileLog(profile: any) {
   return hasDebugFlag(profile, NAVIGATION_DEBUG_FLAG);
+}
+
+export function isWingDebugProfileLog(profile: any) {
+  return hasDebugFlag(profile, WING_DEBUG_FLAG);
 }

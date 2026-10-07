@@ -92,9 +92,9 @@ class WorkerPool {
 
 // Inputs are copies made for the job, so their buffers can move to the worker.
 const analysisPool = new WorkerPool(FFTWorker, (job) =>
-  [job.input, job.output]
-    .filter((value) => value instanceof Float32Array)
-    .map((value) => value.buffer),
+  [job.input, "output" in job && job.output, "closedLoop" in job && job.closedLoop]
+    .filter((value) => ArrayBuffer.isView(value))
+    .map((value) => (value as ArrayBufferView).buffer),
 );
 
 export const analysisWorker = (job: AnalysisJob) => analysisPool.run(job);

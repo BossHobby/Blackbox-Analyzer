@@ -4,7 +4,20 @@
     <LogSummary />
 
     <Panel title="Step response" :description="stepDescription">
+      <p
+        v-if="!closedLoop.known"
+        role="status"
+        class="flex items-start gap-2 text-sm text-muted"
+      >
+        <Icon name="warning" class="text-warning" />In Manual mode the sticks
+        drive the {{ bb.isRoverLog ? "steering" : "control surfaces" }}
+        directly, so gyro does not track setpoint. This log cannot tell Manual
+        flight apart; enable the
+        {{ bb.isRoverLog ? "Rover" : "Wing" }} blackbox debug mode to get a step
+        response from the stabilized sections.
+      </p>
       <div
+        v-else
         class="grid gap-6"
         :class="axes.length == 1 ? 'max-w-xl' : 'lg:grid-cols-3'"
       >
@@ -93,6 +106,7 @@ import {
   type LogColumn,
 } from "@/stores/blackbox";
 import { pidGainsLabel } from "@/log/profile";
+import { closedLoopFrames } from "@/log/summary";
 import { Analysis, type StepResponse } from "@/analysis";
 import {
   columnMeans,
@@ -140,6 +154,8 @@ const rangeLabel = computed(() =>
     : "the whole log",
 );
 
+const closedLoop = computed(() => closedLoopFrames(bb.entries, bb.profile));
+
 // Copies a column slice into a fresh array the worker can take ownership of.
 function slice(column: LogColumn, scale = 1) {
   const out = new Float32Array(bb.selectionEndIndex - bb.selectionStartIndex);
@@ -157,13 +173,13 @@ let stepToken = 0;
 
 const stepDescription = computed(
   () =>
-    `How gyro follows setpoint over ${rangeLabel.value}, deconvolved from windows with stick input; crashes and hard hits are left out. The band shows the spread between groups of windows; 1.0 is the target.`,
+    `How gyro follows setpoint over ${rangeLabel.value}, deconvolved from windows with stick input; crashes${closedLoop.value.mask ? ", hard hits and Manual mode" : " and hard hits"} are left out. The band shows the spread between groups of windows; 1.0 is the target.`,
 );
 
 async function updateSteps() {
   const token = ++stepToken;
   const setpointDef = bb.fields.setpoint;
-  if (!setpointDef || !bb.fields.gyro_filter) {
+  if (!setpointDef || !bb.fields.gyro_filter || !closedLoop.value.known) {
     steps.value = [];
     return;
   }
@@ -177,11 +193,13 @@ async function updateSteps() {
       if (!setpoint || !gyro || !axes.value.some((a) => a.index == axis)) {
         return undefined;
       }
+      const mask = closedLoop.value.mask;
       return Analysis.stepResponse(
         bb.sampleFrequency,
         minInput,
         slice(setpoint),
         slice(gyro),
+        mask?.slice(bb.selectionStartIndex, bb.selectionEndIndex),
       ).catch((err) => {
         console.warn("step response failed", err);
         return undefined;

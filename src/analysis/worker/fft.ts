@@ -33,6 +33,7 @@ export type AnalysisJob =
       minInput: number;
       input: Float32Array;
       output: Float32Array;
+      closedLoop: Uint8Array;
     };
 
 function run(wasm: Analysis, job: AnalysisJob): [any, Transferable[]] {
@@ -59,6 +60,7 @@ function run(wasm: Analysis, job: AnalysisJob): [any, Transferable[]] {
         job.minInput,
         job.input,
         job.output,
+        job.closedLoop,
       );
       const step = {
         ...res,
