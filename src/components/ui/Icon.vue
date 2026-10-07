@@ -22,6 +22,7 @@ const icons = {
 };
 const navigationPaths = {
   overview: ["M4 4h7v7H4z", "M13 4h7v4h-7z", "M13 10h7v10h-7z", "M4 13h7v7H4z"],
+  tune: ["M3 19h4c2 0 2-14 5-14s2.5 6 5 6h4", "M3 11h18"],
   timeline: ["M3 5v14h18", "m6 14 3-5 3 3 4-7 3 4"],
   spectrum: ["M3 21h18", "M5 17v-3m4 3V7m4 10v-6m4 6V4m4 13v-4"],
 };

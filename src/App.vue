@@ -66,6 +66,7 @@ import GraphSettings from "@/components/GraphSettings.vue";
 
 const navigation: { id: string; label: string; icon: IconName }[] = [
   { id: "/", label: "Overview", icon: "overview" },
+  { id: "/tune", label: "Tune", icon: "tune" },
   { id: "/timeline", label: "Timeline", icon: "timeline" },
   { id: "/spectrum", label: "Spectrum", icon: "spectrum" },
 ];

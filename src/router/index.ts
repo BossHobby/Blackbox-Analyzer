@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 
 import OverviewView from "../views/OverviewView.vue";
+import TuneView from "../views/TuneView.vue";
 import TimelineView from "../views/TimelineView.vue";
 import SpectrumView from "../views/SpectrumView.vue";
 
@@ -21,6 +22,15 @@ const router = createRouter({
       meta: {
         title: "Overview",
         description: "What happened in this flight and where to look.",
+      },
+    },
+    {
+      path: "/tune",
+      name: "tune",
+      component: TuneView,
+      meta: {
+        title: "Tune",
+        description: "Step response and noise spectrogram.",
       },
     },
     {

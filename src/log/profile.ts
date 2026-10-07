@@ -600,3 +600,12 @@ export function profileFilterCutoffs(profile: any): BlackboxFilterCutoff[] {
 
   return cutoffs.sort((a, b) => a.frequency - b.frequency);
 }
+
+export function pidGainsLabel(profile: any, axis: number) {
+  const gains = (["kp", "ki", "kd"] as const).map((term) =>
+    pidAxisValue(profile, term, axis),
+  );
+  return gains.every(Boolean)
+    ? `P ${gains[0]} · I ${gains[1]} · D ${gains[2]}`
+    : undefined;
+}

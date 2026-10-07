@@ -1,4 +1,5 @@
 import FFTWorker from "./worker/fft?worker";
+import type { AnalysisJob } from "./worker/fft";
 
 type WorkerJob = {
   input: any;
@@ -62,7 +63,11 @@ class WorkerPool {
 
     const slot: WorkerSlot = { worker: new this.workerCtor() };
     slot.worker.onmessage = (ev: MessageEvent) => {
-      slot.current?.resolve(ev.data);
+      if (ev.data?.error != undefined) {
+        slot.current?.reject(new Error(ev.data.error));
+      } else {
+        slot.current?.resolve(ev.data?.result);
+      }
       slot.current = undefined;
       this.drain();
     };
@@ -85,9 +90,11 @@ class WorkerPool {
   }
 }
 
-const fftPool = new WorkerPool(FFTWorker, (input) => {
-  const buffer = input.input?.buffer;
-  return buffer ? [buffer] : [];
-});
+// Inputs are copies made for the job, so their buffers can move to the worker.
+const analysisPool = new WorkerPool(FFTWorker, (job) =>
+  [job.input, job.output]
+    .filter((value) => value instanceof Float32Array)
+    .map((value) => value.buffer),
+);
 
-export const fftWorker = (input: any) => fftPool.run(input);
+export const analysisWorker = (job: AnalysisJob) => analysisPool.run(job);
