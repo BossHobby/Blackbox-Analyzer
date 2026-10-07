@@ -15,11 +15,11 @@
 
     <section
       v-if="rthRuns.length"
-      aria-label="RTH phases"
+      :aria-label="phaseTitle"
       class="rounded-lg border border-line bg-panel p-3"
     >
       <div class="mb-1 flex items-baseline justify-between text-sm">
-        <h2 class="font-semibold">RTH phases</h2>
+        <h2 class="font-semibold">{{ phaseTitle }}</h2>
         <span class="text-xs text-muted">click a phase to move the cursor</span>
       </div>
       <div class="relative h-7 rounded-sm bg-subtle">
@@ -125,15 +125,18 @@ import {
   type TileProvider,
 } from "@/components/nav/tiles";
 import { useLogPosition } from "@/ui/useJump";
+import { navigationStates } from "@/log/profile";
 
 // Navigation debug slots, see the firmware's blackbox_set_debug() call sites.
+// Slots 0-3, 7 and 8 are shared; the rest differ between multi and wing.
 const NAV = {
   heading: 0,
   gpsHeading: 1,
   confidence: 3,
-  rthState: 4,
-  homeDistance: 5,
+  state: 4,
   correctionFlags: 7,
+  // multi/navigation.cpp
+  homeDistance: 5,
   headingError: 9,
   desiredNorth: 10,
   desiredEast: 11,
@@ -141,8 +144,12 @@ const NAV = {
   gpsEast: 13,
   overridePitch: 14,
   overrideRoll: 15,
+  // wing/navigation.cpp
+  circleDistance: 5,
+  altitudeError: 6,
+  commandPitch: 14,
+  commandRoll: 15,
 };
-const RTH_FAILURE_STATES = new Set([6, 7, 8]);
 
 const bb = useBlackboxStore();
 const tl = useTimelineStore();
@@ -172,11 +179,15 @@ function debugSeries(
   return { column: `debug_${slot}`, label, def: debugDef(slot), ...extra };
 }
 
+const nav = computed(() => navigationStates(bb.profile));
+const isWing = computed(() => bb.vehicleLabel == "Wing");
+const phaseTitle = computed(() =>
+  nav.value?.name == "RTH" ? "RTH phases" : "Navigation phases",
+);
+
 const rthRuns = computed(() => {
-  const column = bb.isNavigationDebugLog
-    ? bb.entries[`debug_${NAV.rthState}`]
-    : undefined;
-  const labels = debugDef(NAV.rthState).labels ?? [];
+  const column = nav.value ? bb.entries[`debug_${NAV.state}`] : undefined;
+  const labels = nav.value?.labels ?? [];
   const runs: {
     start: number;
     end: number;
@@ -195,7 +206,7 @@ const rthRuns = computed(() => {
         end: i,
         state,
         label: labels[state] ?? `State ${state}`,
-        failed: RTH_FAILURE_STATES.has(state),
+        failed: !!nav.value?.failures.has(state),
       });
     }
     start = i;
@@ -234,11 +245,6 @@ const plots = computed(() => {
         yRange: [0, 360],
       },
       {
-        title: "Heading error (deg)",
-        series: [debugSeries(NAV.headingError, "Error")],
-        height: 90,
-      },
-      {
         title: "Heading confidence (%) and correction blocks",
         series: [debugSeries(NAV.confidence, "Confidence")],
         flags: {
@@ -247,6 +253,36 @@ const plots = computed(() => {
         },
         yRange: [0, 100],
         height: 80 + 8 * 12,
+      },
+    );
+  }
+
+  if (bb.isNavigationDebugLog && isWing.value) {
+    plots.push(
+      {
+        title: "Distance from circle centre (m)",
+        series: [debugSeries(NAV.circleDistance, "Distance")],
+        height: 90,
+      },
+      {
+        title: "Altitude error (m, target minus actual)",
+        series: [debugSeries(NAV.altitudeError, "Error")],
+        height: 90,
+      },
+      {
+        title: "Navigation attitude command (deg)",
+        series: [
+          debugSeries(NAV.commandPitch, "Pitch"),
+          debugSeries(NAV.commandRoll, "Roll"),
+        ],
+      },
+    );
+  } else if (bb.isNavigationDebugLog && !bb.isRoverLog) {
+    plots.push(
+      {
+        title: "Heading error (deg)",
+        series: [debugSeries(NAV.headingError, "Error")],
+        height: 90,
       },
       {
         title: "Velocity north (m/s)",
@@ -279,7 +315,7 @@ const plots = computed(() => {
     });
   }
 
-  if (bb.isNavigationDebugLog) {
+  if (bb.isNavigationDebugLog && !isWing.value && !bb.isRoverLog) {
     plots.push({
       title: "Navigation stick override",
       series: [

@@ -34,7 +34,16 @@ const HEADING_CORRECTION_FLAGS = [
   "Not Forward",
   "RTH Phase",
 ];
-const WING_MODE_LABELS = ["Manual", "Acro", "Level"];
+const WING_MODE_LABELS = ["Manual", "Acro", "Level", "Nav"];
+const WING_NAV_STATE_LABELS = [
+  "Inactive",
+  "Loiter",
+  "Loiter Bank",
+  "RTH Return",
+  "RTH Home",
+  "RTH Heading",
+  "Descend",
+];
 const WING_LAUNCH_LABELS = [
   "Idle",
   "Idle Delay",
@@ -66,29 +75,93 @@ export const ROVER_DEBUG_FIELDS: BlackboxAxisDef[] = [
   { title: "Accel Factor", scale: 100, unit: NONE },
 ];
 // Slot layouts match the firmware's blackbox_set_debug() call sites.
-const NAVIGATION_DEBUG_FIELDS: BlackboxAxisDef[] = [
-  { title: "Heading", scale: 10, unit: BlackboxFieldUnit.DEGREES },
-  { title: "GPS Heading", scale: 10, unit: BlackboxFieldUnit.DEGREES },
-  { title: "Altitude", scale: 10, unit: BlackboxFieldUnit.METERS },
-  { title: "Heading Confidence", scale: 10, unit: BlackboxFieldUnit.PERCENT },
-  { title: "RTH State", scale: 1, unit: NONE, labels: RTH_STATE_LABELS },
-  { title: "Home Distance", scale: 1, unit: BlackboxFieldUnit.METERS },
-  { title: "Home Bearing", scale: 10, unit: BlackboxFieldUnit.DEGREES },
-  {
+const DEG = BlackboxFieldUnit.DEGREES;
+const M = BlackboxFieldUnit.METERS;
+const MPS = BlackboxFieldUnit.METERS_PER_SECOND;
+// Slots written by the shared IMU and altitude code (imu.cpp, navigation.cpp).
+const NAVIGATION_SHARED_DEBUG: { [slot: number]: BlackboxAxisDef } = {
+  0: { title: "Heading", scale: 10, unit: DEG },
+  1: { title: "GPS Heading", scale: 10, unit: DEG },
+  2: { title: "Altitude", scale: 10, unit: M },
+  3: { title: "Heading Confidence", scale: 10, unit: BlackboxFieldUnit.PERCENT },
+  7: {
     title: "Heading Correction Flags",
     scale: 1,
     unit: NONE,
     flags: HEADING_CORRECTION_FLAGS,
   },
-  { title: "GPS Heading Accuracy", scale: 10, unit: BlackboxFieldUnit.DEGREES },
-  { title: "Heading Error", scale: 10, unit: BlackboxFieldUnit.DEGREES },
-  { title: "Desired Vel North (m/s)", scale: 10, unit: BlackboxFieldUnit.NONE },
-  { title: "Desired Vel East (m/s)", scale: 10, unit: BlackboxFieldUnit.NONE },
-  { title: "GPS Vel North (m/s)", scale: 10, unit: BlackboxFieldUnit.NONE },
-  { title: "GPS Vel East (m/s)", scale: 10, unit: BlackboxFieldUnit.NONE },
-  { title: "RX Override Pitch", scale: 1000, unit: BlackboxFieldUnit.NONE },
-  { title: "RX Override Roll", scale: 1000, unit: BlackboxFieldUnit.NONE },
-];
+  8: { title: "GPS Heading Accuracy", scale: 10, unit: DEG },
+};
+// multi/navigation.cpp
+const NAVIGATION_MULTI_DEBUG: { [slot: number]: BlackboxAxisDef } = {
+  4: { title: "RTH State", scale: 1, unit: NONE, labels: RTH_STATE_LABELS },
+  5: { title: "Home Distance", scale: 1, unit: M },
+  6: { title: "Home Bearing", scale: 10, unit: DEG },
+  9: { title: "Heading Error", scale: 10, unit: DEG },
+  10: { title: "Desired Vel North", scale: 10, unit: MPS },
+  11: { title: "Desired Vel East", scale: 10, unit: MPS },
+  12: { title: "GPS Vel North", scale: 10, unit: MPS },
+  13: { title: "GPS Vel East", scale: 10, unit: MPS },
+  14: { title: "RX Override Pitch", scale: 1000, unit: NONE },
+  15: { title: "RX Override Roll", scale: 1000, unit: NONE },
+};
+// wing/navigation.cpp
+const NAVIGATION_WING_DEBUG: { [slot: number]: BlackboxAxisDef } = {
+  4: { title: "Nav State", scale: 1, unit: NONE, labels: WING_NAV_STATE_LABELS },
+  5: { title: "Circle Distance", scale: 1, unit: M },
+  6: { title: "Altitude Error", scale: 10, unit: M },
+  14: { title: "Nav Pitch", scale: 10, unit: DEG },
+  15: { title: "Nav Roll", scale: 10, unit: DEG },
+};
+
+function navigationDebugFields(profile: any): BlackboxAxisDef[] {
+  const vehicle = isWingProfileLog(profile)
+    ? NAVIGATION_WING_DEBUG
+    : isRoverProfileLog(profile)
+      ? {}
+      : NAVIGATION_MULTI_DEBUG;
+  return Array.from(
+    { length: 16 },
+    (_, slot) =>
+      NAVIGATION_SHARED_DEBUG[slot] ??
+      vehicle[slot] ?? { title: `Unused ${slot}`, scale: 1, unit: NONE },
+  );
+}
+
+export interface NavigationStates {
+  // Short name for a run of non-zero states.
+  name: string;
+  labels: string[];
+  // States that mean navigation could not do its job.
+  failures: Set<number>;
+  // State reached when the craft is back over home.
+  home?: number;
+  // States that are loitering rather than returning (wing).
+  loiter?: Set<number>;
+}
+
+/** The navigation state machine logged in debug slot 4, per vehicle. */
+export function navigationStates(profile: any): NavigationStates | undefined {
+  if (!hasDebugFlag(profile, NAVIGATION_DEBUG_FLAG) || isRoverProfileLog(profile)) {
+    return undefined;
+  }
+  if (isWingProfileLog(profile)) {
+    return {
+      name: "Navigation",
+      labels: WING_NAV_STATE_LABELS,
+      // No GPS (bank turn, IMU-heading return) or an unpowered failsafe glide.
+      failures: new Set([2, 5, 6]),
+      home: 4,
+      loiter: new Set([1, 2]),
+    };
+  }
+  return {
+    name: "RTH",
+    labels: RTH_STATE_LABELS,
+    failures: new Set([6, 7, 8]),
+    home: 5,
+  };
+}
 const WING_DEBUG_FIELDS: BlackboxAxisDef[] = [
   { title: "Mode", scale: 1, unit: NONE, labels: WING_MODE_LABELS },
   { title: "Launch State", scale: 1, unit: NONE, labels: WING_LAUNCH_LABELS },
@@ -135,6 +208,7 @@ const WING_AUX_LABELS: { [index: number]: string } = {
   10: "RTH",
   11: "Autotrim",
   12: "Autolaunch",
+  13: "Loiter",
 };
 const ROVER_AUX_LABELS: { [index: number]: string } = {
   0: "Arm",
@@ -232,6 +306,24 @@ function rateModeLabel(profile: any) {
   return mode != undefined ? RATE_MODE_LABELS[mode] : undefined;
 }
 
+// Full-stick rate of rates.cpp calc_bf_rates(axis, 1, 0).
+const BF_RC_RATE_INCREMENTAL = 14.54;
+
+function betaflightMaxRate(rateProfile: any, axis: number) {
+  let rcRate = finiteNumber(rateProfile?.rate?.[0]?.[axis]);
+  const superRate = finiteNumber(rateProfile?.rate?.[1]?.[axis]) ?? 0;
+  if (rcRate == undefined) {
+    return undefined;
+  }
+  if (rcRate > 2) {
+    rcRate += BF_RC_RATE_INCREMENTAL * (rcRate - 2);
+  }
+  const superFactor = superRate
+    ? 1 / Math.min(Math.max(1 - superRate, 0.01), 1)
+    : 1;
+  return 200 * rcRate * superFactor;
+}
+
 export function rateMaxForAxis(profile: any, axis: number) {
   if (isRoverProfileLog(profile) && axis == 2) {
     return finiteNumber(profile?.rover?.yaw_rate);
@@ -241,6 +333,9 @@ export function rateMaxForAxis(profile: any, axis: number) {
   const mode = finiteNumber(rateProfile?.mode);
   if (mode == 0) {
     return finiteNumber(rateProfile?.rate?.[0]?.[axis]);
+  }
+  if (mode == 1) {
+    return betaflightMaxRate(rateProfile, axis);
   }
   if (mode == 2) {
     return finiteNumber(rateProfile?.rate?.[1]?.[axis]);
@@ -402,7 +497,7 @@ function debugAxisDefs(profile: any) {
   }
 
   if (hasDebugFlag(profile, NAVIGATION_DEBUG_FLAG)) {
-    return NAVIGATION_DEBUG_FIELDS.map((def) => ({
+    return navigationDebugFields(profile).map((def) => ({
       ...def,
       title: `Debug ${def.title}`,
     }));
@@ -605,9 +700,15 @@ export function pidGainsLabel(profile: any, axis: number) {
   const gains = (["kp", "ki", "kd"] as const).map((term) =>
     pidAxisValue(profile, term, axis),
   );
-  return gains.every(Boolean)
-    ? `P ${gains[0]} · I ${gains[1]} · D ${gains[2]}`
+  if (!gains.every(Boolean)) {
+    return undefined;
+  }
+  const label = `P ${gains[0]} · I ${gains[1]} · D ${gains[2]}`;
+  // Wings add a rate feedforward per axis.
+  const ff = isWingProfileLog(profile)
+    ? compactNumber(activePidRate(profile)?.kff?.[axis], 1)
     : undefined;
+  return ff && ff != "0" ? `${label} · FF ${ff}` : label;
 }
 
 export function isNavigationDebugProfileLog(profile: any) {

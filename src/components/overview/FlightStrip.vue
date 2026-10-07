@@ -23,6 +23,7 @@ import { monoFont, tooltip } from "@/analysis/render";
 import { useChartTheme } from "@/ui/useChartTheme";
 import { useLogPosition } from "@/ui/useJump";
 import type { LogEvent } from "@/log/summary";
+import { navigationStates } from "@/log/profile";
 
 const GUTTER = 88;
 const PAD_RIGHT = 8;
@@ -30,7 +31,6 @@ const EVENTS = { y: 4, h: 12 };
 const THROTTLE = { y: 24, h: 72 };
 const SATURATION = { y: 104, h: 14 };
 const RTH = { y: 126, h: 16 };
-const RTH_FAILURE_STATES = new Set([6, 7, 8]);
 
 const bb = useBlackboxStore();
 const tl = useTimelineStore();
@@ -39,9 +39,8 @@ const position = useLogPosition();
 const hover = ref<number>();
 
 const strip = computed(() => bb.summary!.strip);
-const rthLabels = computed(
-  () => bb.fields.debug?.axisDefs?.[4]?.labels || ([] as string[]),
-);
+const nav = computed(() => navigationStates(bb.profile));
+const rthLabels = computed(() => nav.value?.labels ?? ([] as string[]));
 const ariaLabel = computed(() => {
   const throttle = bb.summary?.throttle;
   return throttle
@@ -176,7 +175,7 @@ function drawRth(ctx: CanvasRenderingContext2D, width: number) {
     if (state) {
       const x = GUTTER + start * step;
       const w = Math.max((b - start) * step - 2, 1);
-      const failed = RTH_FAILURE_STATES.has(state);
+      const failed = !!nav.value?.failures.has(state);
       ctx.globalAlpha = failed ? 0.35 : 0.2;
       ctx.fillStyle = failed ? t.danger : t.series[5];
       ctx.fillRect(x, RTH.y, w, RTH.h);
@@ -189,7 +188,7 @@ function drawRth(ctx: CanvasRenderingContext2D, width: number) {
     }
     start = b;
   }
-  laneLabel(ctx, "RTH", RTH.y + RTH.h / 2);
+  laneLabel(ctx, nav.value?.name == "RTH" ? "RTH" : "Nav", RTH.y + RTH.h / 2);
 }
 
 function drawEvents(ctx: CanvasRenderingContext2D, width: number) {
@@ -235,7 +234,7 @@ function draw(ctx: CanvasRenderingContext2D) {
     }
     const rth = strip.value.rthState?.[bucket];
     if (rth) {
-      lines.push(`RTH ${rthLabels.value[rth] ?? rth}`);
+      lines.push(`${nav.value?.name ?? "RTH"} ${rthLabels.value[rth] ?? rth}`);
     }
     ctx.strokeStyle = t.ink;
     ctx.beginPath();

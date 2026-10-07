@@ -1,6 +1,7 @@
 import {
   isRoverDebugProfileLog,
   isWingDebugProfileLog,
+  navigationStates,
   profileVehicleLabel,
   rateMaxForAxis,
 } from "./profile";
@@ -29,8 +30,6 @@ const TRACK_POINTS = 2000;
 // Matches the firmware's METERS_PER_DEGREE_LAT (navigation.h).
 const METERS_PER_DEGREE = (6371000 * Math.PI) / 180;
 
-const RTH_FAILURE_STATES = new Set([6, 7, 8]);
-const RTH_HOVER_HOME = 5;
 const AXIS_NAMES = ["Roll", "Pitch", "Yaw"];
 const ROVER_AXIS_NAMES = ["Roll", "Pitch", "Steering"];
 
@@ -450,42 +449,46 @@ export function summarizeLog(
     }
   }
 
-  const rthDef = fields.find((f) => f.name == "debug")?.axisDefs?.[4];
-  const rth = rthDef?.labels ? column(entries, "debug", 4) : undefined;
-  if (rth && rthDef?.labels && frames) {
+  const nav = navigationStates(profile);
+  const navState = nav ? column(entries, "debug", 4) : undefined;
+  if (nav && navState && frames) {
     strip.rthState = new Uint8Array(strip.buckets);
     for (let b = 0; b < strip.buckets; b++) {
-      strip.rthState[b] = rth[Math.floor(((b + 0.5) * frames) / strip.buckets)];
+      strip.rthState[b] = navState[Math.floor(((b + 0.5) * frames) / strip.buckets)];
     }
 
-    const names = rthDef.labels;
-    const runs = findRuns(frames, (i) => rth[i] || undefined, 1, 0);
+    const name = (state: number) => nav.labels[state] ?? `${state}`;
+    const runs = findRuns(frames, (i) => navState[i] || undefined, 1, 0);
     for (const run of runs) {
       const visited: number[] = [];
       for (let i = run.start; i <= run.end; i++) {
-        if (visited[visited.length - 1] != rth[i]) {
-          visited.push(rth[i]);
+        if (visited[visited.length - 1] != navState[i]) {
+          visited.push(navState[i]);
         }
       }
-      // RTH usually ends because the pilot switches it off, so the last
-      // phase is where it stopped, not an outcome.
-      const failure = visited.find((s) => RTH_FAILURE_STATES.has(s));
-      const last = names[visited[visited.length - 1]] ?? visited[visited.length - 1];
+      // Navigation usually ends because the pilot switches it off, so the
+      // last phase is where it stopped, not an outcome.
+      const failure = visited.find((s) => nav.failures.has(s));
+      const last = name(visited[visited.length - 1]);
+      const loiter = nav.loiter && visited.every((s) => nav.loiter!.has(s));
+      const what = loiter ? "Loiter" : "RTH";
       const label =
         failure != undefined
-          ? `RTH failed: ${names[failure] ?? failure}`
+          ? `${what}: ${name(failure)}`
           : run.end >= frames - 1
-            ? `RTH active until log end (${last})`
-            : visited.includes(RTH_HOVER_HOME)
-              ? "RTH reached home"
-              : `RTH stopped during ${last}`;
+            ? `${what} active until log end (${last})`
+            : loiter
+              ? "Loiter"
+              : nav.home != undefined && visited.includes(nav.home)
+                ? "RTH reached home"
+                : `RTH stopped during ${last}`;
       events.push({
         kind: "rth",
         severity: failure != undefined ? "critical" : "info",
         start: run.start,
         end: run.end,
         label,
-        detail: visited.map((s) => names[s] ?? `${s}`).join(" → "),
+        detail: visited.map(name).join(" → "),
       });
     }
   }

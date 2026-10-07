@@ -7,6 +7,7 @@ export enum BlackboxFieldUnit {
   HZ = "hz",
   G = "g",
   PERCENT = "percent",
+  METERS_PER_SECOND = "mps",
 }
 
 export interface BlackboxAxisDef {
@@ -82,6 +83,9 @@ export function unitBlackbox(field: BlackboxAxisDef) {
 
     case BlackboxFieldUnit.PERCENT:
       return "%";
+
+    case BlackboxFieldUnit.METERS_PER_SECOND:
+      return "m/s";
 
     case BlackboxFieldUnit.US:
       return "us";
