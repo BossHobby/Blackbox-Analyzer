@@ -24,5 +24,8 @@ self.onmessage = async (e) => {
   const sampleFrequency = Number(e.data.sampleFrequency);
   const input = e.data.input as Float32Array;
   const res = wasm.fft(sampleFrequency, input);
-  self.postMessage(res);
+  // serde hands back a plain number array; a typed array transfers for free
+  // and stays out of Vue's deep reactivity on the main thread.
+  const power = Float32Array.from(res.power);
+  self.postMessage({ ...res, power }, [power.buffer]);
 };

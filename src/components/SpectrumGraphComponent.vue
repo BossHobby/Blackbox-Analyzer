@@ -21,25 +21,30 @@ const PEAK_BASELINE_HZ = 35;
 const PEAK_GUARD_HZ = 8;
 const MIN_PEAK_PROMINENCE_DB = 4;
 
-function averageWindow(values: Float32Array, start: number, end: number) {
-  let sum = 0;
-  let count = 0;
-  for (let index = start; index < end; index++) {
+// Prefix sums over finite values, so any window average costs O(1). Spectra
+// of long logs have ~100k bins, and the Hz-sized windows span hundreds of them.
+function windowAverager(values: ArrayLike<number>) {
+  const sums = new Float64Array(values.length + 1);
+  const counts = new Uint32Array(values.length + 1);
+  for (let index = 0; index < values.length; index++) {
     const value = values[index];
-    if (Number.isFinite(value)) {
-      sum += value;
-      count++;
-    }
+    const finite = Number.isFinite(value);
+    sums[index + 1] = sums[index] + (finite ? value : 0);
+    counts[index + 1] = counts[index] + (finite ? 1 : 0);
   }
-  return count ? sum / count : undefined;
+  return (start: number, end: number) => {
+    const count = end > start ? counts[end] - counts[start] : 0;
+    return count ? (sums[end] - sums[start]) / count : undefined;
+  };
 }
 
 function smoothSpectrum(power: Float32Array, radius: number) {
+  const average = windowAverager(power);
   const smoothed = new Float32Array(power.length);
   for (let index = 0; index < power.length; index++) {
     const start = Math.max(index - radius, 0);
     const end = Math.min(index + radius + 1, power.length);
-    smoothed[index] = averageWindow(power, start, end) ?? power[index];
+    smoothed[index] = average(start, end) ?? power[index];
   }
   return smoothed;
 }
@@ -66,6 +71,7 @@ function detectPeak(power: Float32Array, sampleFrequency: number) {
     guardBins + 1,
   );
   const smoothed = smoothSpectrum(power, smoothRadius);
+  const averageWindow = windowAverager(smoothed);
   let best:
     | {
         index: number;
@@ -84,12 +90,10 @@ function detectPeak(power: Float32Array, sampleFrequency: number) {
     }
 
     const leftBaseline = averageWindow(
-      smoothed,
       Math.max(startBin, index - baselineBins),
       Math.max(startBin, index - guardBins),
     );
     const rightBaseline = averageWindow(
-      smoothed,
       Math.min(index + guardBins + 1, power.length),
       Math.min(index + baselineBins + 1, power.length),
     );
