@@ -118,6 +118,14 @@ export function formatBlackboxValue(field: BlackboxAxisDef, raw: number) {
   return value.toFixed(digits);
 }
 
+// Clock-style position in the log, e.g. 1:23.4.
+export function formatClock(ms: number) {
+  const tenths = Math.round(Math.max(ms, 0) / 100);
+  const minutes = Math.floor(tenths / 600);
+  const rest = ((tenths % 600) / 10).toFixed(1).padStart(4, "0");
+  return `${minutes}:${rest}`;
+}
+
 export function formatDuration(ms: number) {
   if (!Number.isFinite(ms) || ms <= 0) {
     return "0.00 s";

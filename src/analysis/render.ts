@@ -7,6 +7,37 @@ export function monoFont(size: number) {
   return `${size}px ${MONO_FONT}`;
 }
 
+/** A boxed tooltip beside x, flipped to the left in the right half. */
+export function tooltip(
+  ctx: CanvasRenderingContext2D,
+  theme: ChartTheme,
+  x: number,
+  y: number,
+  width: number,
+  lines: string[],
+) {
+  ctx.font = monoFont(12);
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  const lineHeight = 16;
+  const boxWidth =
+    Math.max(...lines.map((line) => ctx.measureText(line).width)) + 16;
+  const boxHeight = lines.length * lineHeight + 10;
+  const left = x > width / 2 ? x - boxWidth - 10 : x + 10;
+
+  ctx.fillStyle = theme.panel;
+  ctx.strokeStyle = theme.grid;
+  ctx.beginPath();
+  ctx.roundRect(Math.round(left) + 0.5, y + 0.5, boxWidth, boxHeight, 6);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = theme.ink;
+  for (const [index, line] of lines.entries()) {
+    ctx.fillText(line, left + 8, y + 5 + (index + 1) * lineHeight - 4);
+  }
+}
+
 export class Render {
   public static hoverText(
     ctx: CanvasRenderingContext2D,

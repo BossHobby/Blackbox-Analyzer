@@ -3,6 +3,7 @@ import { useSpectrumStore } from "./spectrum";
 import { useTimelineStore } from "./timeline";
 import { readLastLog, saveLastLog } from "./last-log";
 import { loadLog } from "@/log/load";
+import type { LogSummary } from "@/log/summary";
 import {
   ROVER_DEBUG_FIELDS,
   buildProfileSummaryTags,
@@ -80,6 +81,7 @@ export const useBlackboxStore = defineStore("blackbox", {
     end: -1,
     fields: {} as { [index: string]: BlackboxFieldDef },
     entries: {} as LogColumns,
+    summary: undefined as LogSummary | undefined,
   }),
   getters: {
     entriesPerMS(state) {
@@ -277,6 +279,7 @@ export const useBlackboxStore = defineStore("blackbox", {
         log.fields.map((field) => [field.name, field]),
       );
       this.entries = log.entries;
+      this.summary = log.summary;
       this.loadState = BlackboxLoadState.LOADED;
       this.refreshAfterEntriesChanged();
 
@@ -331,6 +334,7 @@ export const useBlackboxStore = defineStore("blackbox", {
       this.end = -1;
       this.fields = {};
       this.entries = {};
+      this.summary = undefined;
 
       useTimelineStore().$reset();
       useSpectrumStore().$reset();

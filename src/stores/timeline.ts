@@ -254,6 +254,18 @@ export const useTimelineStore = defineStore("timeline", {
         Math.max(this._duration - this.zoom / 2, this.zoom / 2),
       );
     },
+    // Centers the window on a frame range with some context on either side.
+    focusRange(startIndex: number, endIndex: number) {
+      const bb = useBlackboxStore();
+      if (!bb.entriesPerMS) {
+        return;
+      }
+      const startMs = startIndex / bb.entriesPerMS;
+      const endMs = endIndex / bb.entriesPerMS;
+      this.setZoom(Math.max((endMs - startMs) * 3, 1000));
+      this.setCursor((startMs + endMs) / 2);
+      this.hover = 0.5;
+    },
     setWindowHover(width: number, offset: number) {
       const pos = offset / width;
       this.hover = Math.min(Math.max(pos, 0), 1);

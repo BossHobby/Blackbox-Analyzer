@@ -232,7 +232,7 @@ function rateModeLabel(profile: any) {
   return mode != undefined ? RATE_MODE_LABELS[mode] : undefined;
 }
 
-function rateMaxForAxis(profile: any, axis: number) {
+export function rateMaxForAxis(profile: any, axis: number) {
   if (isRoverProfileLog(profile) && axis == 2) {
     return finiteNumber(profile?.rover?.yaw_rate);
   }

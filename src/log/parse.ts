@@ -10,6 +10,7 @@ import {
   type BlackboxFieldID,
   type LogColumns,
 } from "./types";
+import { summarizeLog, type LogSummary } from "./summary";
 
 export interface ParsedLog {
   rate: number;
@@ -17,6 +18,7 @@ export interface ParsedLog {
   profile: any;
   fields: BlackboxFieldDef[];
   entries: LogColumns;
+  summary: LogSummary;
 }
 
 function validateBlackboxFile(blackbox: any) {
@@ -153,11 +155,15 @@ export function parseBlackbox(text: string): ParsedLog {
   const entries = splitColumns(rawEntries, fields);
   addDerivedColumns(entries, profile);
 
+  const rate = blackbox.blackbox_rate;
+  const looptime = blackbox.looptime;
+  const framesPerMs = rate && looptime ? 1000 / looptime / rate : 1;
   return {
-    rate: blackbox.blackbox_rate,
-    looptime: blackbox.looptime,
+    rate,
+    looptime,
     profile,
     fields,
     entries,
+    summary: summarizeLog(fields, entries, profile, framesPerMs),
   };
 }

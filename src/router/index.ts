@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 
+import OverviewView from "../views/OverviewView.vue";
 import TimelineView from "../views/TimelineView.vue";
 import SpectrumView from "../views/SpectrumView.vue";
 
@@ -15,6 +16,15 @@ const router = createRouter({
   routes: [
     {
       path: "/",
+      name: "overview",
+      component: OverviewView,
+      meta: {
+        title: "Overview",
+        description: "What happened in this flight and where to look.",
+      },
+    },
+    {
+      path: "/timeline",
       name: "timeline",
       component: TimelineView,
       meta: {

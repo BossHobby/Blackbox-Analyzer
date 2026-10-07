@@ -10,12 +10,12 @@
     "
     :ready="bb.isLoaded"
     :status="status"
-    :sidebar="bb.isLoaded && render.sidebar"
+    :sidebar="bb.isLoaded && render.sidebar && hasGraphSettings"
   >
     <template #connection>
       <div class="flex items-center gap-2">
         <UiButton
-          v-if="bb.isLoaded"
+          v-if="bb.isLoaded && hasGraphSettings"
           aria-label="Graphs"
           :aria-pressed="render.sidebar"
           :class="render.sidebar ? 'bg-active' : ''"
@@ -65,7 +65,8 @@ import TimelineFooter from "@/components/TimelineFooter.vue";
 import GraphSettings from "@/components/GraphSettings.vue";
 
 const navigation: { id: string; label: string; icon: IconName }[] = [
-  { id: "/", label: "Timeline", icon: "timeline" },
+  { id: "/", label: "Overview", icon: "overview" },
+  { id: "/timeline", label: "Timeline", icon: "timeline" },
   { id: "/spectrum", label: "Spectrum", icon: "spectrum" },
 ];
 
@@ -88,6 +89,9 @@ export default defineComponent({
     };
   },
   computed: {
+    hasGraphSettings() {
+      return this.$route.name == "timeline" || this.$route.name == "spectrum";
+    },
     status() {
       switch (this.bb.loadState) {
         case BlackboxLoadState.LOADING:

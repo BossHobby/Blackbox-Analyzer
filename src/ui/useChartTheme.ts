@@ -7,6 +7,8 @@ export interface ChartTheme {
   ink: string;
   accent: string;
   danger: string;
+  warning: string;
+  panel: string;
   subtle: string;
   selection: string;
   bands: string[];
@@ -27,6 +29,8 @@ function readTheme(): ChartTheme {
     ink: token("--ui-ink"),
     accent: token("--ui-accent"),
     danger: token("--ui-danger"),
+    warning: token("--ui-warning"),
+    panel: token("--ui-panel"),
     subtle: token("--ui-subtle"),
     selection: token("--ui-plot-selection"),
     bands: [token("--ui-plot-band-1"), token("--ui-plot-band-2")],
