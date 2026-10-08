@@ -291,9 +291,7 @@ export const useBlackboxStore = defineStore("blackbox", {
       this.loadState = BlackboxLoadState.LOADED;
       this.refreshAfterEntriesChanged();
 
-      if (import.meta.env.DEV) {
-        saveLastLog(pickedFile);
-      }
+      saveLastLog(pickedFile);
     },
     async restoreLastBlackbox() {
       const log = await readLastLog();

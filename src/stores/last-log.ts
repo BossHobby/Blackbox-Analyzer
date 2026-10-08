@@ -1,5 +1,5 @@
-// Dev-only: keeps the last loaded log in IndexedDB so Vite reloads reopen it.
-const DB_NAME = "guacalyzer-dev";
+// Keeps the last loaded log in IndexedDB so a reload reopens it.
+const DB_NAME = "blackbox-analyzer";
 const STORE = "logs";
 const KEY = "last";
 

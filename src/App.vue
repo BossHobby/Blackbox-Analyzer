@@ -109,9 +109,7 @@ export default defineComponent({
   },
   mounted() {
     this.render.startRender();
-    if (import.meta.env.DEV) {
-      this.bb.restoreLastBlackbox();
-    }
+    this.bb.restoreLastBlackbox();
   },
   unmounted() {
     this.render.stopRender();
