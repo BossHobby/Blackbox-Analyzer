@@ -8,6 +8,7 @@ import {
   Plus,
   X,
   SlidersHorizontal,
+  FileDown,
 } from "@lucide/vue";
 // Navigation icons are hand-drawn below; these cover everything else.
 const icons = {
@@ -19,6 +20,7 @@ const icons = {
   plus: Plus,
   close: X,
   settings: SlidersHorizontal,
+  download: FileDown,
 };
 const navigationPaths = {
   overview: ["M4 4h7v7H4z", "M13 4h7v4h-7z", "M13 10h7v10h-7z", "M4 13h7v7H4z"],

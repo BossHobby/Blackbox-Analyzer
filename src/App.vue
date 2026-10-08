@@ -25,6 +25,19 @@
           ></UiButton
         >
         <UiButton
+          v-if="bb.isLoaded"
+          aria-label="Export CSV"
+          :title="
+            bb.hasSelection
+              ? 'Export the selected range as CSV'
+              : 'Export the whole log as CSV'
+          "
+          @click="exportCsv()"
+          ><Icon name="download" /><span class="hidden sm:inline"
+            >CSV</span
+          ></UiButton
+        >
+        <UiButton
           variant="primary"
           aria-label="Load File"
           :busy="bb.loadState == LoadState.LOADING"
@@ -63,6 +76,7 @@ import UiButton from "@/components/ui/Button.vue";
 import Icon, { type IconName } from "@/components/ui/Icon.vue";
 import TimelineFooter from "@/components/TimelineFooter.vue";
 import GraphSettings from "@/components/GraphSettings.vue";
+import { downloadBlob, fileStem, logCsv } from "@/ui/export";
 
 const navigation: { id: string; label: string; icon: IconName }[] = [
   { id: "/", label: "Overview", icon: "overview" },
@@ -113,6 +127,24 @@ export default defineComponent({
   },
   unmounted() {
     this.render.stopRender();
+  },
+  methods: {
+    exportCsv() {
+      const bb = this.bb;
+      const csv = logCsv(
+        Object.values(bb.fields),
+        bb.entries,
+        bb.selectionStartIndex,
+        bb.selectionEndIndex,
+      );
+      const suffix = bb.hasSelection
+        ? `-${bb.selectionStartIndex}-${bb.selectionEndIndex}`
+        : "";
+      downloadBlob(
+        new Blob([csv], { type: "text/csv" }),
+        `${fileStem(bb.filename)}${suffix}.csv`,
+      );
+    },
   },
 });
 </script>
