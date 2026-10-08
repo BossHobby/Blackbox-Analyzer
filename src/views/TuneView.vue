@@ -4,6 +4,9 @@
     <LogSummary />
 
     <Panel title="Step response" :description="stepDescription">
+      <template v-if="throttleBands" #actions>
+        <Segmented v-model="band" label="Throttle" :options="throttleBands" />
+      </template>
       <p
         v-if="!closedLoop.known"
         role="status"
@@ -77,7 +80,16 @@
       </div>
       <div class="grid gap-4 lg:grid-cols-3">
         <section v-for="axis in AXES" :key="axis" class="min-w-0">
-          <h3 class="mb-1 text-sm font-semibold">{{ axisNames[axis] }}</h3>
+          <h3 class="mb-1 flex items-baseline justify-between gap-2 text-sm">
+            <span class="font-semibold">{{ axisNames[axis] }}</span>
+            <span
+              v-if="filterDelays[axis] != undefined"
+              class="text-xs text-muted tabular-nums"
+              title="Phase delay of filtered behind raw gyro at 10-60 Hz"
+            >
+              filter delay {{ filterDelays[axis]!.toFixed(1) }} ms
+            </span>
+          </h3>
           <SpectrogramHeatmap
             :data="heatmaps[axis]"
             :db-range="range"
@@ -126,6 +138,13 @@ import StepResponsePlot from "@/components/tune/StepResponsePlot.vue";
 import SpectrogramHeatmap from "@/components/tune/SpectrogramHeatmap.vue";
 import { useChartTheme } from "@/ui/useChartTheme";
 import { heatColor, heatRamp } from "@/ui/heatRamp";
+import { phaseDelayMs } from "@/analysis/delay";
+import {
+  smoothThrottle,
+  throttleBandMask,
+  throttleTerciles,
+  type ThrottleBand,
+} from "@/analysis/throttle";
 
 type SpectrumField = "gyro_raw" | "gyro_filter" | "pid_dterm";
 
@@ -167,13 +186,18 @@ function slice(column: LogColumn, scale = 1) {
 
 // Step response ------------------------------------------------------------
 
+const BANDS = ["low", "mid", "high"] as const;
+const band = ref<"all" | (typeof BANDS)[number]>("all");
+const bandIndex = computed(() =>
+  band.value == "all" ? undefined : (BANDS.indexOf(band.value) as ThrottleBand),
+);
 const steps = shallowRef<(StepResponse | undefined)[]>([]);
 const stepLoading = ref(false);
 let stepToken = 0;
 
 const stepDescription = computed(
   () =>
-    `How gyro follows setpoint over ${rangeLabel.value}, deconvolved from windows with stick input; crashes${closedLoop.value.mask ? ", hard hits and Manual mode" : " and hard hits"} are left out. The band shows the spread between groups of windows; 1.0 is the target.`,
+    `How gyro follows setpoint over ${rangeLabel.value}${bandIndex.value == undefined ? "" : `, in the ${["lowest", "middle", "highest"][bandIndex.value]} third of throttle`}, deconvolved from windows with stick input; crashes${closedLoop.value.mask ? ", hard hits and Manual mode" : " and hard hits"} are left out. The band shows the spread between groups of windows; 1.0 is the target.`,
 );
 
 async function updateSteps() {
@@ -193,13 +217,12 @@ async function updateSteps() {
       if (!setpoint || !gyro || !axes.value.some((a) => a.index == axis)) {
         return undefined;
       }
-      const mask = closedLoop.value.mask;
       return Analysis.stepResponse(
         bb.sampleFrequency,
         minInput,
         slice(setpoint),
         slice(gyro),
-        mask?.slice(bb.selectionStartIndex, bb.selectionEndIndex),
+        stepMask(),
       ).catch((err) => {
         console.warn("step response failed", err);
         return undefined;
@@ -211,6 +234,42 @@ async function updateSteps() {
     stepLoading.value = false;
   }
 }
+
+// Closed-loop frames of the selection, narrowed to the chosen throttle band.
+function stepMask() {
+  const base = closedLoop.value.mask?.slice(
+    bb.selectionStartIndex,
+    bb.selectionEndIndex,
+  );
+  const smoothed = smoothedThrottle.value;
+  if (bandIndex.value == undefined || !smoothed) {
+    return base;
+  }
+  return throttleBandMask(smoothed, throttleEdges.value, bandIndex.value, base);
+}
+
+// Throttle averaged over a step window, so bands hold whole windows.
+const smoothedThrottle = computed(() =>
+  throttle.value
+    ? smoothThrottle(throttle.value, Math.round(bb.sampleFrequency))
+    : undefined,
+);
+const throttleEdges = computed(() =>
+  smoothedThrottle.value
+    ? throttleTerciles(smoothedThrottle.value)
+    : ([0, 0] as [number, number]),
+);
+
+const throttleBands = computed(() => {
+  if (!smoothedThrottle.value) return undefined;
+  const [low, high] = throttleEdges.value.map((v) => (v * 100).toFixed(0));
+  return [
+    { value: "all" as const, label: "All" },
+    { value: "low" as const, label: `< ${low}%` },
+    { value: "mid" as const, label: `${low}–${high}%` },
+    { value: "high" as const, label: `> ${high}%` },
+  ];
+});
 
 // Raw value for a value in display units (deg/s for radian fields).
 function transformInverse(def: { scale: number; unit: any }, value: number) {
@@ -312,6 +371,22 @@ const cutoffs = computed(() => {
   return bb.filterCutoffs.filter((cutoff) => cutoff.kind == kind);
 });
 
+// Delay the gyro filters add, from raw against filtered gyro.
+const filterDelays = computed(() =>
+  AXES.map((axis) => {
+    const raw = bb.entries[`gyro_raw_${axis}`];
+    const filtered = bb.entries[`gyro_filter_${axis}`];
+    if (!raw || !filtered) return undefined;
+    const from = bb.selectionStartIndex;
+    const to = bb.selectionEndIndex;
+    return phaseDelayMs(
+      bb.sampleFrequency,
+      raw.subarray(from, to),
+      filtered.subarray(from, to),
+    );
+  }),
+);
+
 // Dynamic notch centre frequencies (Hz) per spectrogram column.
 const notchTracks = computed(() =>
   AXES.map((axis) => {
@@ -358,7 +433,7 @@ const rampGradient = computed(() => {
 });
 
 watch(
-  () => [bb.entries, bb.selectionStartIndex, bb.selectionEndIndex],
+  () => [bb.entries, bb.selectionStartIndex, bb.selectionEndIndex, band.value],
   () => updateSteps(),
   { immediate: true },
 );
