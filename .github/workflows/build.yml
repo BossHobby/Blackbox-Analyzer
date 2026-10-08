@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - "master"
+  pull_request:
 
 permissions:
   contents: write
@@ -12,36 +13,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: setup rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          targets: wasm32-unknown-unknown
 
       - name: cache cargo
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo/
-          key: ${{ runner.os }}-cargo
+            ~/.cargo/bin/
+            ~/.cargo/registry/
+            ~/.cargo/git/
+            @cargo/analysis/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('@cargo/analysis/Cargo.toml') }}
 
       - name: install cargo packages
         run: |
-          cargo install wasm-pack rsw
+          command -v wasm-pack || cargo install wasm-pack
+          command -v rsw || cargo install rsw
 
-      - name: cache node_modules
-        uses: actions/cache@v3
+      - name: setup node
+        uses: actions/setup-node@v4
         with:
-          path: node_modules
-          key: ${{ runner.os }}-node_modules
+          node-version: 24
+          cache: npm
 
       - name: install npm packages
-        run: npm install
+        run: npm ci
+
+      - name: test analysis crate
+        run: cargo test --manifest-path @cargo/analysis/Cargo.toml
+
+      - name: test
+        run: npm test
 
       - name: build gh-pages
         run: |
           npm run build:gh-pages
+
+      # Needs the wasm package the build generates.
+      - name: type-check
+        run: npm run type-check
 
       - name: upload artifacts
         uses: actions/upload-artifact@v4
@@ -51,10 +66,11 @@ jobs:
 
   deploy:
     needs: build
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: checkout gh-pages
         run: |
