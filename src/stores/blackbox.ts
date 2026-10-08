@@ -1,9 +1,10 @@
+import { toRaw } from "vue";
 import { defineStore } from "pinia";
 import { useSpectrumStore } from "./spectrum";
 import { useTimelineStore } from "./timeline";
 import { readLastLog, saveLastLog } from "./last-log";
 import { loadLog } from "@/log/load";
-import type { LogSummary } from "@/log/summary";
+import { summarizeLog, type LogSummary } from "@/log/summary";
 import {
   ROVER_DEBUG_FIELDS,
   buildProfileSummaryTags,
@@ -314,6 +315,13 @@ export const useBlackboxStore = defineStore("blackbox", {
       for (const key of Object.keys(this.entries)) {
         this.entries[key] = this.entries[key].slice(safeStart, safeEnd);
       }
+      // Events, strip and track hold frame indices into the old columns.
+      this.summary = summarizeLog(
+        Object.values(toRaw(this.fields)),
+        toRaw(this.entries),
+        toRaw(this.profile),
+        this.entriesPerMS || 1,
+      );
 
       this.start = 0;
       this.end = -1;
