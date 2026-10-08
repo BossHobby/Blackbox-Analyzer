@@ -26,6 +26,14 @@
         <Icon name="warning" />No valid timeline fields are selected. Add fields
         in the graph settings or apply the default preset.
       </p>
+      <p class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+        <span v-for="[keys, action] in TIMELINE_KEYS" :key="keys"
+          ><kbd class="font-mono text-ink">{{ keys }}</kbd> {{ action }}</span
+        >
+        <span
+          ><kbd class="font-mono text-ink">Ctrl</kbd>+drag zoom to area</span
+        >
+      </p>
     </div>
   </template>
 </template>
@@ -41,6 +49,7 @@ import Icon from "@/components/ui/Icon.vue";
 import TimeGraphComponent from "@/components/TimeGraphComponent.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import LogSummary from "@/components/LogSummary.vue";
+import { TIMELINE_KEYS, useTimelineKeys } from "@/ui/useTimelineKeys";
 
 export default defineComponent({
   name: "TimelineView",
@@ -52,7 +61,9 @@ export default defineComponent({
     LogSummary,
   },
   setup() {
+    useTimelineKeys();
     return {
+      TIMELINE_KEYS,
       tl: useTimelineStore(),
       bb: useBlackboxStore(),
       formatDuration,

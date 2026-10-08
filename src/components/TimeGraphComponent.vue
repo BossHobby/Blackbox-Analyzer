@@ -174,13 +174,33 @@ export default defineComponent({
           return path;
         }
         const xOffset = (start - windowOffset) * tickWidth;
-        path.moveTo(xOffset, halfHeight);
-        for (let i = 0; i < values.length; i++) {
-          const val = values[i] * mul;
-          path.lineTo(
-            xOffset + i * tickWidth,
-            val * -1 * halfHeight + halfHeight,
-          );
+        const y = (val: number) => val * mul * -1 * halfHeight + halfHeight;
+        if (tickWidth >= 0.5) {
+          path.moveTo(xOffset, halfHeight);
+          for (let i = 0; i < values.length; i++) {
+            path.lineTo(xOffset + i * tickWidth, y(values[i]));
+          }
+          return path;
+        }
+
+        // Wide windows: one min/max span per pixel keeps peaks visible and
+        // the path size bounded by the canvas width.
+        const perPixel = 1 / tickWidth;
+        for (let px = 0; px * perPixel < values.length; px++) {
+          const from = Math.floor(px * perPixel);
+          const to = Math.min(Math.floor((px + 1) * perPixel), values.length);
+          let min = values[from];
+          let max = values[from];
+          for (let i = from + 1; i < to; i++) {
+            min = Math.min(min, values[i]);
+            max = Math.max(max, values[i]);
+          }
+          const x = xOffset + px;
+          if (px == 0) {
+            path.moveTo(x, y(values[from]));
+          }
+          path.lineTo(x, y(max));
+          path.lineTo(x, y(min));
         }
         return path;
       });
