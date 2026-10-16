@@ -1,15 +1,10 @@
 mod utils;
 
-use core::f32;
-use realfft::num_complex::Complex;
 use realfft::RealFftPlanner;
+use realfft::num_complex::Complex;
 use serde::{Deserialize, Serialize};
 use std::cmp;
 use wasm_bindgen::prelude::*;
-
-#[cfg(feature = "wee_alloc")]
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[derive(Serialize, Deserialize)]
 pub struct FFTResult {
@@ -113,9 +108,7 @@ pub fn step_response(
         let sp = &input[start..start + frame_len];
         let gy = &output[start..start + frame_len];
         let open_loop = !closed_loop.is_empty()
-            && closed_loop[start..(start + frame_len).min(closed_loop.len())]
-                .iter()
-                .any(|v| *v == 0);
+            && closed_loop[start..(start + frame_len).min(closed_loop.len())].contains(&0);
         start += hop;
         result.candidates += 1;
 
@@ -248,7 +241,7 @@ pub fn hann_window(samples: &[f32]) -> Vec<f32> {
 
     let samples_len_f32 = samples.len() as f32;
     for (i, sample) in samples.iter().enumerate() {
-        let two_pi_i = 2.0 * f32::consts::PI * i as f32;
+        let two_pi_i = 2.0 * std::f32::consts::PI * i as f32;
         let idontknowthename = f32::cos(two_pi_i / samples_len_f32);
         let multiplier = 0.5 * (1.0 - idontknowthename);
         windowed_samples.push(multiplier * sample)
@@ -307,7 +300,7 @@ impl Analysis {
             res.range = f32::max(res.range, f32::abs(val));
         }
 
-        return serde_wasm_bindgen::to_value(&res).unwrap();
+        serde_wasm_bindgen::to_value(&res).unwrap()
     }
 
     /// Windowed power spectral density, one column of `fft_len / 2 + 1` bins
@@ -385,14 +378,14 @@ impl Analysis {
 
         let entries_per_pixel = cmp::max(input.len() / width, 1);
         for i in 0..width {
-            let mut val = 0.0 as f32;
+            let mut val = 0.0_f32;
             for j in 0..entries_per_pixel {
                 val += input[i * entries_per_pixel + j]
             }
             res[i] = val / entries_per_pixel as f32;
         }
 
-        return res.into_boxed_slice();
+        res.into_boxed_slice()
     }
 
     pub fn moving_avg(&self, window: usize, input: &[f32]) -> Box<[f32]> {
@@ -402,7 +395,7 @@ impl Analysis {
 
         let mut results: Vec<f32> = Vec::with_capacity(input.len());
 
-        let mut sum = 0.0 as f32;
+        let mut sum = 0.0_f32;
         for i in 0..window {
             sum += input[i];
         }
@@ -415,7 +408,7 @@ impl Analysis {
             results.push(sum / window as f32);
         }
 
-        return results.into_boxed_slice();
+        results.into_boxed_slice()
     }
 
     pub fn transform(&self, expo: f32, window: usize, input: &[f32]) -> JsValue {
@@ -433,7 +426,13 @@ impl Analysis {
 
         res.values = self.moving_avg(window, &res.values);
 
-        return serde_wasm_bindgen::to_value(&res).unwrap();
+        serde_wasm_bindgen::to_value(&res).unwrap()
+    }
+}
+
+impl Default for Analysis {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
