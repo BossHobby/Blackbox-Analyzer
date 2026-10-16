@@ -32,8 +32,8 @@ jobs:
 
       - name: install cargo packages
         run: |
-          command -v wasm-pack || cargo install wasm-pack
-          command -v rsw || cargo install rsw
+          command -v wasm-pack || cargo install --locked wasm-pack
+          command -v rsw || cargo install --locked rsw
 
       - name: setup node
         uses: actions/setup-node@v4
